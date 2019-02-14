@@ -1,0 +1,87 @@
+{
+	"moduleDescription" :
+	{
+		"title" : 									"Machine Learning",
+		"description": 							"A module for Machine Learning",
+		"version":									0.1,
+		"author":										"JASP Team",
+		"maintainer":								"JASP Team <info@jasp-stats.org>",
+		"website":									"www.jasp-stats.org",
+		"license":									"GPL (>= 2)"
+	},
+
+	"requiredPackages":	[],
+
+	"ribbonEntries":
+	[
+		{
+			"title": 									"Regression",
+			"icon": 									"analysis-ml-regression.svg",
+			"analyses":
+			[
+				{
+					"title":							"Boosting",
+					"qml":								"mlregressionboosting.qml",
+					"function":						"MLRegressionBoosting",
+					"usesJaspResults":		true
+				},
+				{
+					"title":							"K-Nearest Neighbors",
+					"qml":								"mlregressionknn.qml",
+					"function":						"MLRegressionKNN",
+					"usesJaspResults":		true
+				},
+				{
+					"title":							"Random Forest",
+					"qml":								"mlregressionrandomforest.qml",
+					"function":						"MLRegressionRandomForest",
+					"usesJaspResults":		true
+				}
+			]
+		},
+		{
+			"title": 									"Classification",
+			"icon": 									"analysis-ml-classification.svg",
+			"analyses":
+			[
+				{
+					"title":							"Boosting",
+					"qml":								"mlclassificationboosting.qml",
+					"function":						"MLClassificationBoosting",
+					"usesJaspResults":		true
+				},
+				{
+					"title":							"K-Nearest Neighbors",
+					"qml":								"mlclassificationknn.qml",
+					"function":						"MLClassificationKNN",
+					"usesJaspResults":		true
+				},
+				{
+					"title":							"Random Forest",
+					"qml":								"mlclassificationrandomforest.qml",
+					"function":						"MLClassificationRandomForest",
+					"usesJaspResults":		true
+				}
+			]
+		},
+		{
+			"title": 									"Clustering",
+			"icon": 									"analysis-ml-clustering.svg",
+			"analyses":
+			[
+				{
+					"title":							"K-Means",
+					"qml":								"mlclusteringkmeans.qml",
+					"function":						"MLClusteringKMeans",
+					"usesJaspResults":		true
+				},
+				{
+					"title":							"Random Forest",
+					"qml":								"mlclusteringrandomforest.qml",
+					"function":						"MLClusteringRandomForest",
+					"usesJaspResults":		true
+				}
+			]
+		}
+	]
+}
