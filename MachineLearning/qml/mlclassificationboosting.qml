@@ -47,8 +47,12 @@ Form
                 }
     }
 
-    CheckBox { name: "classBoostConfMat";	text: qsTr("Confusion Matrix for Test Set Predictions")      }
-    CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative Influence Table")                   }
+    GroupBox {
+        title: qsTr("Tables")
+
+        CheckBox { name: "classBoostConfTable";	    text: qsTr("Confusion Table")         ; checked: true   }
+        CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative Influence Table")                  }
+    }
 
     ExpanderButton
     {
@@ -56,69 +60,86 @@ Form
 
         GridLayout
         {
-            RadioButtonGroup
-            {
+
+            RadioButtonGroup {
+                title: qsTr("Number of Trees for Training")
                 name: "noOfTrees"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true		}
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: noOfTrees 	}
-                IntegerField
-                {
-                    name: "numberOfTrees"
-                    text: qsTr("No. of trees:")
-                    defaultValue: 100
-                    fieldWidth: 50
-                    enabled: noOfTrees.checked
-                    indent: true
+                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RowLayout {
+                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: numberOfTrees }
+                    TextField {
+                        inputType: "integer"
+                        name: "numberOfTrees"
+                        validator: IntValidator {bottom: 1; top: 999999}
+                        fieldWidth: 75
+                        enabled: numberOfTrees.checked
+                    }
                 }
             }
 
-            RadioButtonGroup
-            {
+            RadioButtonGroup {
+                title: qsTr("Shrinkage")
                 name: "shrinkage"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: shrinkage	}
-                DoubleField
-                {
-                    name: "shrinkage.parameter"
-                    doubleValidator { bottom: 0; top: 1; decimals: 4 }
-                    text: qsTr("Shrinkage:")
-                    fieldWidth: 75
-                    defaultValue: 0.1
-                    enabled: shrinkage.checked
-                    indent: true
+                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RowLayout {
+                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: shrinkage }
+                    TextField
+                    {
+                        property double defaultValue:		0.1
+                        property bool	validation:			true
+
+                                        inputType:			"number"
+                                        name:               "shrinkage.parameter"
+                                        validator:			DoubleValidator { bottom: 0; top: 1 ; decimals: 5 }
+                                        value:				Number.parseFloat(defaultValue);
+                                        enabled:            shrinkage.checked
+                                        fieldWidth:         75
+                    }
                 }
             }
 
-            RadioButtonGroup
-            {
+            RadioButtonGroup {
+                title: qsTr("Interaction Depth")
                 name: "int.depth"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: interaction	}
-                IntegerField
-                {
-                    name: "int.depth.parameter"
-                    text: qsTr("Interaction depth:")
-                    defaultValue: 1
-                    fieldWidth: 50
-                    enabled: interaction.checked
-                    indent: true
+                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RowLayout {
+                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: interaction }
+                    TextField {
+                        inputType: "integer"
+                        name: "int.depth.parameter"
+                        validator: IntValidator {bottom: 1; top: 999}
+                        enabled: interaction.checked
+                    }
                 }
             }
 
-            RadioButtonGroup
-            {
-                visible:false;
-                name: "cv.folds"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: cv	}
-                IntegerField
-                {
-                    name: "cv.folds.spec"
-                    text: qsTr("CV folds:")
-                    defaultValue: 1
-                    fieldWidth: 50
-                    enabled: cv.checked
-                    indent: true
+            RadioButtonGroup {
+                title: qsTr("Min. No. Observations in Node")
+                name: "nNode"
+                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RowLayout {
+                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: nNode }
+                    TextField {
+                        inputType: "integer"
+                        name: "nNodeSpec"
+                        validator: IntValidator {bottom: 1; top: 999}
+                        enabled: nNode.checked
+                    }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("CV Folds")
+                name: "cvFolds"
+                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RowLayout {
+                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: cvFolds }
+                    TextField {
+                        inputType: "integer"
+                        name: "cvFoldsSpec"
+                        validator: IntValidator {bottom: 1; top: 99}
+                        enabled: cvFolds.checked
+                    }
                 }
             }
 
@@ -127,12 +148,11 @@ Form
                 name: "dataTrain"
                 RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
                 RadioButton { value: "manual";	text: qsTr("Manual"); id: dataTrain	}
-                DoubleField
+                PercentField
                 {
                     name: "percentageDataTraining"
-                    doubleValidator { bottom: 0; top: 1; decimals: 2 }
-                    text: qsTr("% of data used for training:")
-                    defaultValue: 0.8
+                    text: qsTr("Data used for training:")
+                    defaultValue: 80
                     enabled: dataTrain.checked
                     indent: true
                 }
@@ -143,12 +163,11 @@ Form
                 name: "bag.fraction"
                 RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
                 RadioButton { value: "manual";	text: qsTr("Manual"); id: bagfraction	}
-                DoubleField
+                PercentField
                 {
                     name: "bag.fraction.spec"
-                    doubleValidator { bottom: 0; top: 1; decimals: 2 }
-                    text: qsTr("% of training data used per tree:")
-                    defaultValue: 0.5
+                    text: qsTr("Training data used per tree:")
+                    defaultValue: 50
                     enabled: bagfraction.checked
                     indent: true
                 }
@@ -163,8 +182,9 @@ Form
 
         Group
         {
-            CheckBox { name: "plotRelInf";              text: qsTr("Relative influence plot")             			}
-            CheckBox { name: "plotTreesVsModelError";   text: qsTr("OOB improvement plot")        					}
+            CheckBox { name: "plotRelInf";       text: qsTr("Relative influence plot")   }
+            CheckBox { name: "plotDeviance";     text: qsTr("Deviance plot")             }
+            CheckBox { name: "plotOOBChangeDev"; text: qsTr("OOB improvement plot")      }
         }
     }
 

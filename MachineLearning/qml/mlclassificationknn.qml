@@ -24,7 +24,7 @@ Form {
     id: form
 
     VariablesForm {
-        defaultAssignedVariablesList {
+        AssignedVariablesList {
             name: "target"
             title: qsTr("Target")
             singleItem: true
@@ -48,12 +48,12 @@ Form {
         columns: 3
 
         ColumnLayout {
-            ButtonGroup {
+            RadioButtonGroup {
                 title: qsTr("Nearest Neighbors")
                 name: "noOfNearestNeighbours"
 
                 GroupBox {
-                    RadioButton { text: qsTr("Auto")                ; name: "auto" ; checked: true}
+                    RadioButton { text: qsTr("Auto")                ; name: "auto" ; checked: true }
                     RowLayout {
                         RadioButton { text: qsTr("Manual")              ; name: "manual"; id: manualType }
                         TextField {
@@ -103,7 +103,7 @@ Form {
                 }
             }
 
-            ButtonGroup {
+            RadioButtonGroup {
                 title: qsTr("Training data")
                 name: "percentageTrainingData"
                 RadioButton { text: qsTr("Auto")                        ; name: "auto" ; checked: true}
@@ -182,7 +182,7 @@ Form {
             columns: 3
 
             ColumnLayout {
-                ButtonGroup {
+                RadioButtonGroup {
                     title: qsTr("NA action")
                     name: "naAction"
                     RadioButton { text: qsTr("Delete Listwise")           ; name: "deleteListwise" }
@@ -200,7 +200,7 @@ Form {
             }
 
             ColumnLayout {
-                ButtonGroup {
+                RadioButtonGroup {
                     title: qsTr("Distance parameter")
                     name: "distanceParameter"
                     RadioButton { text: qsTr("Auto")           ; name: "auto" }

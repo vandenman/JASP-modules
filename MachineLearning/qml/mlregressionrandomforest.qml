@@ -49,7 +49,7 @@ Form
     }
 
     CheckBox { name: "tableVariableImportance";	text: qsTr("Variable importance table")                                  }
-    CheckBox { name: "applyImpute";	text: qsTr("Apply model to missing target values"); disabled: indicator.checked      }
+    CheckBox { name: "applyImpute";	text: qsTr("Apply model to missing target values"); enabled: indicator.checked      }
 
     ExpanderButton
     {

@@ -40,12 +40,12 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
   # Output containers, tables, and plots based on the results
   .classBoostTable(                jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostApplyTable(           jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostConfMat(              jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostConfTable(            jaspResults, options, classBoostResults, ready, analysisOptions, dataset)
   .classBoostRelInfTable(          jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostContainerPlots(       jaspResults, options, classBoostResults, ready)
-  .classBoostRelInfPlot(           jaspResults, options, classBoostResults, ready)
-  .classBoostPlotTreesVsModelError(jaspResults, options, classBoostResults, ready)
+  .classBoostApplyTable(           jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostRelInfPlot(           jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostPlotDeviance(jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostPlotOOBChangeDev(     jaspResults, options, classBoostResults, ready, analysisOptions)
   
   return()
 }
@@ -56,40 +56,33 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   if (options$target == "")    options$target <- NULL
   if (options$indicator == "") options$indicator <- NULL
   
-  dataset <- .readDataSetToEnd(columns.as.factor = c(options$target, options$indicator), columns = options$predictors)
+  data <- .readDataSetToEnd(columns.as.factor = c(options$target, options$indicator), columns = options$predictors)
   
-  return(dataset)
+  return(data)
 }
 
 # Error checking
 .classBoostErrorHandling <- function(dataset, options) {
   
   # Error Check 1: 0 observations for the target variable
-  .hasErrors(
-    dataset = dataset, 
-    perform = "run", 
-    type = c('observations', 'variance', 'infinity'),
-    all.target = options$target,
-    observations.amount = '< 1',
-    exitAnalysisIfErrors = TRUE)
+  .hasErrors(dataset = dataset, perform = "run", type = c('observations', 'variance', 'infinity'),
+             all.target = options$target, observations.amount = '< 3', exitAnalysisIfErrors = TRUE)
   
   # Error Check 2: Apply indicator should not have any missing values (consist of 0s and 1s)
-  .hasErrors(
-    dataset = dataset, 
-    perform = "run", 
-    type = c('observations', 'variance', 'infinity'),
-    all.target = options$indicator,
-    observations.amount = nrow(dataset),
-    exitAnalysisIfErrors = TRUE)
+  if (options$indicator != "") {
+    .hasErrors(dataset = dataset, perform = "run", type = c('observations', 'variance', 'infinity'),
+               all.target = options$indicator, observations.amount = nrow(dataset), exitAnalysisIfErrors = TRUE)
+  }
   
-  # # Error Check 3: At least 2 predictors should be provided (otherwise gbm() function breaks)
-  # .hasErrors(
-  #   dataset = dataset, 
-  #   perform = "run", 
-  #   type = c('observations', 'variance', 'infinity'),
-  #   all.target = options$predictors,
-  #   observations.amount = nrow(dataset), # how can we check for the numbers of predictors?
-  #   exitAnalysisIfErrors = TRUE)
+  # Error Check 3: There should be at least 2 predictors (otherwise gbm() complains)
+  if (options$target != "" && ncol(dataset) < 3L){
+    JASP:::.quitAnalysis("Please provide at least 2 predictors.")
+  }
+  
+  # Error Check 4: The target variable should have at least 2 classes
+  if (nlevels(dataset[, .v(options$target)]) < 2){
+    JASP:::.quitAnalysis("The target variable should have at least 2 classes.")
+  }
   
 }
 
@@ -102,7 +95,7 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   results <- list()
   
   results[["spec"]] <- .classBoostCalcSpecs(dataset, options)
-  results[["res"]] <- list()
+  # results[["res"]] <- list()
   
   # Prepare data
   preds <- which(colnames(dataset) %in% .v(options$predictors)) # predictors
@@ -153,30 +146,51 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   trainData <- modelData[idxTrain, c(preds, target), drop = FALSE]
   testData <- modelData[idxTest, preds, drop = FALSE]
   testTarget <- as.character(modelData[idxTest, target])
-  # testTarget <- factor(testData[, target], levels = levels(.v(dataset[, target])))
   
-  # Run Boosting
+  # Prepare Boosting
   formula <- as.formula(paste(.v(options$target), "~", paste(.v(options$predictors), collapse = " + ")))
   
+  if (nlevels(dataset[, target]) == 2) {
+    
+    # distribution <- "bernoulli"
+    distribution <- "multinomial" # should be bernoulli but that somehow screws up the function
+    # does this even matter since multinomial distribution IS the bernoulli distribution when k = 2 and n = 1?
+    # see Wikipedia multinomial distribution
+    
+    } else {
+      
+      distribution <- "multinomial"
+      
+    }
+  
+  # Run Boosting
   results[["res"]] <- gbm::gbm(formula = formula, data = trainData, n.trees = results$spec$noOfTrees,
                                shrinkage = results$spec$shrinkage, interaction.depth = results$spec$int.depth,
-                               cv.folds = results$spec$cv.folds, bag.fraction = results$spec$bag.fraction,
-                               distribution = "multinomial")
+                               cv.folds = results$spec$cvFolds, bag.fraction = results$spec$bag.fraction,
+                               n.minobsinnode = results$spec$nNode, distribution = distribution)
   
   results[["data"]] <- list(trainData = trainData, testData = testData, testTarget = testTarget)
   
+  if(results$spec$cvFolds > 0) results[["method"]] <- "cv" else results[["method"]] <- "OOB"
+  results[["optTrees"]] <- gbm::gbm.perf(results$res, plot.it = FALSE, method = results$method)[1]
   results[["relInf"]] <- summary(results$res, plot = FALSE)
   
   # Derive test set predictions and calculate test error rate
-  prob <- gbm::predict.gbm(results$res, newdata = testData, n.trees = results$spec$noOfTrees, type = "response")
-  results[["preds"]] <- colnames(prob)[apply(prob, 1, which.max)]
-  # results[["preds"]] <- factor(colnames(prob)[apply(prob, 1, which.max)], levels = levels(.v(dataset[, target])))
+  prob <- gbm::predict.gbm(results$res, newdata = testData, n.trees = results$optTrees, type = "response")
   
-  results[["testError"]] <- mean(testTarget != results$preds) # classification error
+  if (distribution == "bernoulli") {
+    results[["preds"]] <- round(prob, 0)
+  } else {
+    results[["preds"]] <- colnames(prob)[apply(prob, 1, which.max)]
+  }
+    
+  results[["testError"]] <- mean(testTarget != as.character(results$preds))
+  results[["confTable"]] <- table("Pred" = results$preds, "True" = results$data$testTarget)
   
   # Apply model to new data
   if(options$indicator != "") {
-    results[["apply"]] <- gbm::predict.gbm(results$res, newdata = applyData, n.trees = results$spec$noOfTrees)
+    applyProb <- gbm::predict.gbm(results$res, newdata = applyData, n.trees = results$optTrees, type = "response")
+    results[["apply"]] <- colnames(applyProb)[apply(applyProb, 1, which.max)]
   }
   
   # Save results to state
@@ -199,13 +213,16 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   if (options$int.depth == "manual") specs$int.depth <- options$int.depth.parameter else specs$int.depth <- 1
   
   # How many cv-folds should be used?
-  if (options$cv.folds == "manual") specs$cv.folds <- options$cv.folds.spec else specs$cv.folds <- 0
+  if (options$cvFolds == "manual") specs$cvFolds <- options$cvFoldsSpec else specs$cvFolds <- 0
   
   # What percentage of the data should be used for training?
   if (options$dataTrain == "manual") specs$dataTrain <- options$percentageDataTraining else specs$dataTrain <- .8
   
   # What percentage of the training data should be used per tree?
   if (options$bag.fraction == "manual") specs$bag.fraction <- options$bag.fraction.spec else specs$bag.fraction <- .5
+  
+  # Minimum number of observations in the terminal nodes of every tree
+  if (options$nNode == "manual") specs$nNode <- options$nNodeSpec else specs$nNode <- 10
   
   return(specs)
 }
@@ -219,6 +236,8 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   jaspResults[["classBoostTable"]] <- classBoostTable
   jaspResults[["classBoostTable"]]$dependOnOptions(analysisOptions)
   
+  classBoostTable$position <- 1
+  
   # Add column info
   if(options$dataTrain == "auto" || options$percentageDataTraining < 1){
     classBoostTable$addColumnInfo(name = "testError",  title = "Test Set Error", type = "number", format = "sf:4")
@@ -226,22 +245,121 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   classBoostTable$addColumnInfo(name = "ntrees",  title = "Trees", type = "integer")
   classBoostTable$addColumnInfo(name = "shrinkage",  title = "Shrinkage", type = "number", format = "sf:4")
   classBoostTable$addColumnInfo(name = "intDepth",  title = "Interaction Depth", type = "integer")
-  classBoostTable$addColumnInfo(name = "ntrain",  title = "Training Observations", type = "integer")
+  classBoostTable$addColumnInfo(name = "ntrain",  title = "n (Train)", type = "integer")
+  classBoostTable$addColumnInfo(name = "ntest",  title = "n (Test)", type = "integer")
   
   # Add data per column
   if(options$dataTrain == "auto" || options$percentageDataTraining < 1){
     classBoostTable[["testError"]]  <- if (ready) classBoostResults$testError else "."
   }
-  classBoostTable[["ntrees"]]  <- if (ready) classBoostResults$res$n.trees else "."
+  classBoostTable[["ntrees"]]  <- if (ready) classBoostResults$optTrees else "."
   classBoostTable[["shrinkage"]]  <- if (ready) classBoostResults$res$shrinkage else "."
   classBoostTable[["intDepth"]]  <- if (ready) classBoostResults$res$interaction.depth else "."
   classBoostTable[["ntrain"]]  <- if (ready) classBoostResults$res$nTrain else "."
+  classBoostTable[["ntest"]]  <- if (ready) length(classBoostResults$data$testTarget) else "."
 
+}
+
+.classBoostConfTable <- function(jaspResults, options, classBoostResults, ready, analysisOptions, dataset) {
+  if (!is.null(jaspResults[["classBoostConfTable"]])) return()
+  if (!options$classBoostConfTable) return()
+  
+  # Create table and bind to jaspResults
+  classBoostConfTable <- createJaspTable(title = "Confusion Table")
+  jaspResults[["classBoostConfTable"]] <- classBoostConfTable
+  jaspResults[["classBoostConfTable"]]$dependOnOptions(c(analysisOptions, "classBoostConfTable"))
+  
+  classBoostConfTable$position <- 2
+  target <- .v(options$target)
+  title_observed <- "Observed"
+  
+  if(ready){
+    
+    classBoostConfTable$addColumnInfo(name = "pred_name", title = "", type = "string")
+    classBoostConfTable$addColumnInfo(name = "varname_pred", title = "", type = "string")
+    for( i in 1:length(rownames(classBoostResults$confTable))){
+      classBoostConfTable$addColumnInfo(name = paste("varname_real", i, sep = ""), 
+                                        title = as.character(rownames(classBoostResults$confTable)[i]), 
+                                        type = "integer")
+    }
+    
+    for( i in 1:length(rownames(classBoostResults$confTable))){
+      row <- list("varname_pred" = as.character(rownames(classBoostResults$confTable))[i])
+      for(j in 1:length(rownames(classBoostResults$confTable))){
+        row[[paste("varname_real", j, sep="")]] <- classBoostResults$confTable[i,j]
+      }
+      if(i == 1){
+        row[["pred_name"]] <- "Predicted"
+      } else {
+        row[["pred_name"]] <- ""
+      }
+      classBoostConfTable$addRows(row)
+    }
+    
+  } else if (options$target != "" && !ready){
+    
+    classBoostConfTable$addColumnInfo(name = "pred_name", title = "", type = "string")
+    classBoostConfTable$addColumnInfo(name = "varname_pred", title = "", type = "string")
+    for( i in 1:length(unique(dataset[ ,target]))){
+      classBoostConfTable$addColumnInfo(name = paste("varname_real",i, sep = ""), 
+                                        title = as.character(sort(unique(dataset[, target]), decreasing = FALSE))[i], 
+                                        type = "integer")
+    }
+    
+    for( i in 1:length(unique(dataset[, target]))){
+      row <- list("varname_pred" = as.character(sort(unique(dataset[, target]), decreasing = FALSE))[i])
+      for(j in 1:length(unique(dataset[, target]))){
+        row[[paste("varname_real",j,sep="")]] <- "."
+      }
+      if(i == 1){
+        row[["pred_name"]] <- "Predicted"
+      } else {
+        row[["pred_name"]] <- ""
+      }
+      classBoostConfTable$addRows(row)
+    }
+  } else {
+    
+    classBoostConfTable$addColumnInfo(name = "pred_name", title = "", type = "string")
+    classBoostConfTable$addColumnInfo(name = "varname_pred", title = "", type = "string")
+    classBoostConfTable$addColumnInfo(name = "varname_real1", title = ".", type = "integer")
+    classBoostConfTable$addColumnInfo(name = "varname_real2", title = ".", type = 'integer')
+    
+    row <- list(pred_name = "Predicted", varname_pred = ".", varname_real1 = "", varname_real2= "")
+    classBoostConfTable$addRows(row)
+    row <- list(pred_name = "", varname_pred = ".", varname_real1= "", varname_real2= "")
+    classBoostConfTable$addRows(row)
+    
+  }
+  
+}
+
+.classBoostRelInfTable <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
+  if (!is.null(jaspResults[["tableVarImp"]])) return()
+  if (!options$classBoostRelInfTable) return()
+  
+  # Create table
+  classBoostRelInfTable <- createJaspTable(title = "Relative Influence")
+  jaspResults[["classBoostRelInfTable"]] <- classBoostRelInfTable
+  jaspResults[["classBoostRelInfTable"]]$dependOnOptions(c(analysisOptions, "classBoostRelInfTable"))
+  
+  classBoostRelInfTable$position <- 3
+  
+  # Add column info
+  classBoostRelInfTable$addColumnInfo(name = "predictor",  title = " ", type = "string")
+  classBoostRelInfTable$addColumnInfo(name = "relIn",  title = "Relative Influence", type = "number", format = "sf:4")
+  
+  # Add data per column
+  classBoostRelInfTable[["predictor"]]  <- if(ready) .unv(classBoostResults$relInf$var) else "."
+  classBoostRelInfTable[["relIn"]]  <- if(ready) classBoostResults$relInf$rel.inf else "."
+  
 }
 
 .classBoostApplyTable <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
   if (!is.null(jaspResults[["classBoostApplyTable"]])) return()
   if (options$indicator == "") return()
+  
+  classBoostTable$position <- 4
   
   # Create table and bind to jaspResults
   classBoostApplyTable <- createJaspTable(title = "Boosting Model Predictions")
@@ -258,69 +376,9 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
 }
 
-.classBoostConfMat <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
-  if (!is.null(jaspResults[["classBoostConfMat"]])) return()
-  if (!options$classBoostConfMat) return()
-  
-  # Create table and bind to jaspResults
-  classBoostConfMat <- createJaspTable(title = "Confusion Matrix")
-  jaspResults[["classBoostConfMat"]] <- classBoostConfMat
-  jaspResults[["classBoostConfMat"]]$dependOnOptions(c(analysisOptions, "classBoostConfMat"))
-  
-  # Fill table with confusion matrix
-  if (ready) { 
-    classBoostConfMat$addColumnInfo(name = "col", title = "Predictor", type = "string")
-    for (level in seq_len(nlevels(.v(options$target)))) {
-      classBoostConfMat$addColumnInfo(name = "cols", title = , type = "integer", overtitle = "Observed")
-    }
-    
-    # classBoostConfMat[["col"]] <- levels(.v(options$target))
-    # classBoostConfMat[["cols"]] <- classBoostConfMat$setData(table(classBoostResults$preds, classBoostResults$data$testTarget))
-    
-    classBoostConfMat$setData(table(classBoostResults$preds, classBoostResults$data$testTarget))
-    
-    } else {
-      
-      classBoostConfMat$setExpectedRows(1)
-      
-    }
-  
-}
-
-.classBoostRelInfTable <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
-  if (!is.null(jaspResults[["tableVarImp"]])) return()
-  if (!options$classBoostRelInfTable) return()
-  
-  # Create table
-  classBoostRelInfTable <- createJaspTable(title = "Relative Influence")
-  jaspResults[["classBoostRelInfTable"]] <- classBoostRelInfTable
-  jaspResults[["classBoostRelInfTable"]]$dependOnOptions(c(analysisOptions, "classBoostRelInfTable"))
-  
-  # Add column info
-  classBoostRelInfTable$addColumnInfo(name = "predictor",  title = " ", type = "string")
-  classBoostRelInfTable$addColumnInfo(name = "relIn",  title = "Relative Influence", type = "number", format = "sf:4")
-  
-  # Add data per column
-  classBoostRelInfTable[["predictor"]]  <- if(ready) .unv(classBoostResults$relInf$var) else "."
-  classBoostRelInfTable[["relIn"]]  <- if(ready) classBoostResults$relInf$rel.inf else "."
-  
-}
-
-.classBoostContainerPlots <- function(jaspResults, options, classBoostResults, ready) {
-  if (!any(options$plotRelInf, options$plotTreesVsModelError)) return()
-  if (!ready) return()
-  
-  if (is.null(jaspResults[["containerPlots"]])) {
-    jaspResults[["containerPlots"]] <- createJaspContainer("Boosting Plots")
-    jaspResults[["containerPlots"]]$dependOnOptions(c("plotRelInf", "plotTreesVsModelError"))
-  }
-}
-
-.classBoostRelInfPlot <- function(jaspResults, options, classBoostResults, ready) {
+.classBoostRelInfPlot <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
   if (!options$plotRelInf) return()
   if (!ready) return()
-  
-  pct <- jaspResults[["containerPlots"]] # create pointer towards main container
   
   relInfPlot <- JASPgraphs::themeJasp(
     ggplot2::ggplot(classBoostResults$relInf, ggplot2::aes(x = reorder(.unv(as.factor(var)), rel.inf), y = rel.inf)) +
@@ -329,33 +387,70 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
     horizontal = TRUE
   )
   
-  pct[['relInfPlot']] <- createJaspPlot(plot = relInfPlot, title = "Relative Influence per Variable",
-                                        width = 500, height = 20 * nrow(classBoostResults$relInf) + 60)
+  # Create plot and bind to jaspResults
+  classBoostRelInfPlot <- createJaspPlot(plot = relInfPlot, title = "Relative Influence Plot",
+                                         width = 500, height = 20 * nrow(classBoostResults$relInf) + 60)
+  jaspResults[["classBoostRelInfPlot"]] <- classBoostRelInfPlot
+  jaspResults[["classBoostRelInfPlot"]]$dependOnOptions(c(analysisOptions, "plotRelInf"))
 }
 
-.classBoostPlotTreesVsModelError <- function(jaspResults, options, classBoostResults, ready) {
-  if (!options$plotTreesVsModelError) return()
+.classBoostPlotDeviance <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
+  if (!options$plotDeviance) return()
   if (!ready) return()
   
-  pct <- jaspResults[["containerPlots"]] # create pointer towards main container
+  if (classBoostResults$method == "OOB") {
+    
+    deviance <- data.frame(trees = 1:classBoostResults$res$n.trees, trainError = classBoostResults$res$train.error) 
+    
+    plotDeviance <- JASPgraphs::themeJasp(
+      ggplot2::ggplot(data = deviance, mapping = ggplot2::aes(x = trees, y = trainError)) +
+        ggplot2::geom_line(size = 1) +
+        ggplot2::xlab("Trees") +
+        ggplot2::ylab("Deviance") +
+      ggplot2::geom_vline(xintercept = classBoostResults$optTrees, color = "lightgray", linetype = "dashed")
+    )
+    
+  } else {
+    
+    deviance <- data.frame(trees = 1:classBoostResults$res$n.trees,
+                           trainError = classBoostResults$res$train.error,
+                           cvError = classBoostResults$res$cv.error) 
+    
+    plotDeviance <- JASPgraphs::themeJasp(
+      ggplot2::ggplot(data = deviance, mapping = ggplot2::aes(x = trees, y = trainError)) +
+        ggplot2::geom_line(size = 1) +
+        ggplot2::geom_line(mapping = ggplot2::aes(x = trees, y = cvError), size = 1, colour = "aquamarine4") +
+        ggplot2::xlab("Trees") +
+        ggplot2::ylab("Deviance") +
+        ggplot2::geom_vline(xintercept = classBoostResults$optTrees, color = "lightgray", linetype = "dashed")
+    )
+    
+  }
+
+  # Create plot and bind to jaspResults
+  plotDeviance <- createJaspPlot(plot = plotDeviance, title = "Deviance Plot", width = 500, height = 400)
+  jaspResults[["plotDeviance"]] <- plotDeviance
+  jaspResults[["plotDeviance"]]$dependOnOptions(c(analysisOptions, "plotDeviance"))
+}
+
+.classBoostPlotOOBChangeDev <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
+  if (!options$plotOOBChangeDev) return()
+  if (!ready) return()
+    
+  oobDev <- data.frame(trees = 1:classBoostResults$res$n.trees, oobImprove = classBoostResults$res$oobag.improve)
   
-  treesOOBImprove <- dplyr::tibble(
-    trees = 1:classBoostResults$res$n.trees,
-    oob.improve = classBoostResults$res$oobag.improve
-  )
-  
-  plotTreesVsModelError <- JASPgraphs::themeJasp(
-    ggplot2::ggplot(data = treesOOBImprove, mapping = ggplot2::aes(x = trees, y = oob.improve)) +
+  plotOOBChangeDev <- JASPgraphs::themeJasp(
+    ggplot2::ggplot(data = oobDev, mapping = ggplot2::aes(x = trees, y = oobImprove)) +
       ggplot2::geom_line(size = 1) +
+      ggplot2::geom_smooth(size = 1, colour = "darkred", se = FALSE) +
       ggplot2::xlab("Trees") +
-      ggplot2::ylab("OOB Change in \n Multinomial Deviance") +
-      ggplot2::geom_vline(
-        xintercept = which.min(abs(classBoostResults$res$oobag.improve)), color = "lightgray", linetype = "dashed") +
-      ggplot2::geom_hline(
-        yintercept = classBoostResults$res$oobag.improve[which.min(abs(classBoostResults$res$oobag.improve))],
-        color = "lightgray", linetype = "dashed")
-  )
+      ggplot2::ylab("OOB Change in Deviance") +
+      ggplot2::geom_vline(xintercept = classBoostResults$optTrees, color = "lightgray", linetype = "dashed")
+    )
   
-  pct[['plotTreesVsModelError']] <- createJaspPlot(plot = plotTreesVsModelError, title = "OOB Improvement",
-                                                   width = 500, height = 400)
+  # Create plot and bind to jaspResults
+  classBoostPlotOOBChangeDev <- createJaspPlot(plot = plotOOBChangeDev,title = "OOB Improvement Plot",
+                                               width = 500, height = 400)
+  jaspResults[["classBoostPlotOOBChangeDev"]] <- classBoostPlotOOBChangeDev
+  jaspResults[["classBoostPlotOOBChangeDev"]]$dependOnOptions(c(analysisOptions, "classBoostPlotOOBChangeDev"))
 }
