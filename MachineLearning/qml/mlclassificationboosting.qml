@@ -30,28 +30,42 @@ Form
         AssignedVariablesList {
             name: "target"
             title: qsTr("Target")
-            singleItem: true
+            singleVariable: true
             allowedColumns: ["nominal", "ordinal"]
         }
         AssignedVariablesList {
                     name: "predictors"
                     title: qsTr("Predictors")
-                    singleItem: false
+                    singleVariable: false
                     allowedColumns: ["nominal", "scale", "ordinal"]
                 }
         AssignedVariablesList {
                     name: "indicator"
                     title: qsTr("Apply indicator (optional)")
-                    singleItem: true
+                    singleVariable: true
                     allowedColumns: ["nominal"]
                 }
+    }
+
+    GroupBox
+    {
+
+    title: qsTr("Model application")
+
+    RadioButtonGroup
+    {
+        name: "applyModel"
+        RadioButton { value: "noApp"         ; text: qsTr("Do not apply model"); checked: true        }
+        RadioButton { value: "applyIndicator"; text: qsTr("Apply model according to indicator")       }
+        RadioButton { value: "applyImpute"   ; text: qsTr("Apply model to missing values in target")  }
+    }
     }
 
     GroupBox {
         title: qsTr("Tables")
 
-        CheckBox { name: "classBoostConfTable";	    text: qsTr("Confusion Table")         ; checked: true   }
-        CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative Influence Table")                  }
+        CheckBox { name: "classBoostConfTable";	    text: qsTr("Confusion Table"); checked: true      }
+        CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative Influence Table")            }
     }
 
     ExpanderButton
@@ -64,16 +78,9 @@ Form
             RadioButtonGroup {
                 title: qsTr("Number of Trees for Training")
                 name: "noOfTrees"
-                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
-                RowLayout {
-                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: numberOfTrees }
-                    TextField {
-                        inputType: "integer"
-                        name: "numberOfTrees"
-                        validator: IntValidator {bottom: 1; top: 999999}
-                        fieldWidth: 75
-                        enabled: numberOfTrees.checked
-                    }
+                RadioButton { name: "auto"  ; text: qsTr("Auto")   ; checked: true}
+                RadioButton { name: "manual"; text: qsTr("Manual") ; childrenOnSameRow: true
+                    IntegerField { name: "numberOfTrees"; min: 1; max: 999999; defaultValue: 100; fieldWidth: 60 }
                 }
             }
 
@@ -81,35 +88,17 @@ Form
                 title: qsTr("Shrinkage")
                 name: "shrinkage"
                 RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
-                RowLayout {
-                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: shrinkage }
-                    TextField
-                    {
-                        property double defaultValue:		0.1
-                        property bool	validation:			true
-
-                                        inputType:			"number"
-                                        name:               "shrinkage.parameter"
-                                        validator:			DoubleValidator { bottom: 0; top: 1 ; decimals: 5 }
-                                        value:				Number.parseFloat(defaultValue);
-                                        enabled:            shrinkage.checked
-                                        fieldWidth:         75
-                    }
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    DoubleField { name: "shrinkPar"; defaultValue: 0.1; min: 0; max: 1; fieldWidth: 60 }
                 }
             }
 
             RadioButtonGroup {
                 title: qsTr("Interaction Depth")
                 name: "int.depth"
-                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
-                RowLayout {
-                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: interaction }
-                    TextField {
-                        inputType: "integer"
-                        name: "int.depth.parameter"
-                        validator: IntValidator {bottom: 1; top: 999}
-                        enabled: interaction.checked
-                    }
+                RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    IntegerField { name: "int.depth.parameter"; defaultValue: 1; min: 1; max: 999 }
                 }
             }
 
@@ -117,60 +106,37 @@ Form
                 title: qsTr("Min. No. Observations in Node")
                 name: "nNode"
                 RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
-                RowLayout {
-                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: nNode }
-                    TextField {
-                        inputType: "integer"
-                        name: "nNodeSpec"
-                        validator: IntValidator {bottom: 1; top: 999}
-                        enabled: nNode.checked
-                    }
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    IntegerField { name: "nNodeSpec"; defaultValue: 10; min: 1; max: 999999 }
+                }
+            }
+
+            RadioButtonGroup
+            {
+                title: qsTr("Data used for training")
+                name: "dataTrain"
+                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    PercentField { name: "percentageDataTraining"; defaultValue: 80 }
+                }
+            }
+
+            RadioButtonGroup
+            {
+                title: qsTr("Training data used per tree")
+                name: "bag.fraction"
+                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    PercentField { name: "bag.fraction.spec"; defaultValue: 50 }
                 }
             }
 
             RadioButtonGroup {
-                title: qsTr("CV Folds")
-                name: "cvFolds"
-                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
-                RowLayout {
-                    RadioButton { text: qsTr("Manual")  ; name: "manual"; id: cvFolds }
-                    TextField {
-                        inputType: "integer"
-                        name: "cvFoldsSpec"
-                        validator: IntValidator {bottom: 1; top: 99}
-                        enabled: cvFolds.checked
-                    }
-                }
-            }
-
-            RadioButtonGroup
-            {
-                name: "dataTrain"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: dataTrain	}
-                PercentField
-                {
-                    name: "percentageDataTraining"
-                    text: qsTr("Data used for training:")
-                    defaultValue: 80
-                    enabled: dataTrain.checked
-                    indent: true
-                }
-            }
-
-            RadioButtonGroup
-            {
-                name: "bag.fraction"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: bagfraction	}
-                PercentField
-                {
-                    name: "bag.fraction.spec"
-                    text: qsTr("Training data used per tree:")
-                    defaultValue: 50
-                    enabled: bagfraction.checked
-                    indent: true
-                }
+                title: qsTr("Model optimization")
+                name: "modelOptimization"
+                RadioButton { text: qsTr("None")                    ; name: "noOpt"; checked: true }
+                RadioButton { text: qsTr("Out-of-bag")              ; name: "oob"                  }
+                RadioButton { text: qsTr("10-fold cross-validation"); name: "cv"                   }
             }
 
         }
@@ -202,17 +168,9 @@ Form
             RadioButtonGroup
             {
                 name: "seedBox"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: seedBox           }
-                DoubleField
-                {
-                    name: "seed"
-                    text: qsTr("Seed:")
-                    doubleValidator { bottom: -99999999; top: 99999999; decimals: 2 }
-                    defaultValue: 1
-                    fieldWidth: 50
-                    enabled: seedBox.checked
-                    indent: true
+                RadioButton { value: "auto"  ;	text: qsTr("Auto")  ; checked: true           }
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    DoubleField { name: "seed"; defaultValue: 1 }
                 }
             }
             }
@@ -224,9 +182,9 @@ Form
 
             RadioButtonGroup
             {
-                name: "missingValues"
-                RadioButton { value: "na.omit";	text: qsTr("Omit NA rows"); checked: true                 }
-                RadioButton { value: "roughfix";	text: qsTr("Apply roughfix to NAs"); id: naAction          }
+                name: "NAs"
+                RadioButton { value: "na.omit" ; text: qsTr("Omit all rows that contain NAs"); checked: true  }
+                RadioButton { value: "roughfix"; text: qsTr("Apply roughfix to NAs")                          }
             }
             }
 

@@ -24,16 +24,15 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   dataset <- .classBoostReadData(dataset, options)
   
   # Check if results can be computed
-  ready <- (!is.null(options$target) && length(.v(options$predictors)) > 0)
+  ready <- (options$target != "" && length(.v(options$predictors)) > 0)
   
   # Error checking
   if (ready) errors <- .classBoostErrorHandling(dataset, options)
   
   # Save analysis options in an object so that they don't have to be listed every time
-  analysisOptions <- c("target", "predictors", "indicator", "noOfTrees", "numberOfTrees", "shrinkage",
-                       "shrinkage.parameter", "int.depth", "int.depth.parameter", "cv.folds", "cv.folds.spec",
-                       "dataTrain", "percentageDataTraining", "bag.fraction", "bag.fraction.spec", "seedBox", "seed",
-                       "missingValues")
+  analysisOptions <- c("target", "predictors", "indicator", "noOfTrees", "numberOfTrees", "shrinkage", "shrinkPar",
+                       "int.depth", "int.depth.parameter", "modelOptimization", "dataTrain",
+                       "percentageDataTraining", "bag.fraction", "bag.fraction.spec", "seedBox", "seed", "NAs")
   
   # Compute (a list of) results from which tables and plots can be created
   if (ready) classBoostResults <- .classBoostComputeResults(jaspResults, dataset, options, analysisOptions)
@@ -44,7 +43,7 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   .classBoostRelInfTable(          jaspResults, options, classBoostResults, ready, analysisOptions)
   .classBoostApplyTable(           jaspResults, options, classBoostResults, ready, analysisOptions)
   .classBoostRelInfPlot(           jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostPlotDeviance(jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostPlotDeviance(         jaspResults, options, classBoostResults, ready, analysisOptions)
   .classBoostPlotOOBChangeDev(     jaspResults, options, classBoostResults, ready, analysisOptions)
   
   return()
@@ -64,9 +63,9 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
 # Error checking
 .classBoostErrorHandling <- function(dataset, options) {
   
-  # Error Check 1: 0 observations for the target variable
+  # Error Check 1: There should be at least 5 observations in the target variable
   .hasErrors(dataset = dataset, perform = "run", type = c('observations', 'variance', 'infinity'),
-             all.target = options$target, observations.amount = '< 3', exitAnalysisIfErrors = TRUE)
+             all.target = options$target, observations.amount = '< 5', exitAnalysisIfErrors = TRUE)
   
   # Error Check 2: Apply indicator should not have any missing values (consist of 0s and 1s)
   if (options$indicator != "") {
@@ -84,6 +83,12 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
     JASP:::.quitAnalysis("The target variable should have at least 2 classes.")
   }
   
+  # Error Check 5: If target values should be imputed, there have to be missing values in the target
+  # if (options$applyModel == "applyImpute" && sum(is.na(dataset[, .v(options$target)])) < 1) {
+  #   JASP:::.quitAnalysis("To apply model to missing values in target, please provide observations that have missing 
+  #   values in the target variable.")
+  # }
+  
 }
 
 # Compute results
@@ -91,38 +96,36 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
   if (!is.null(jaspResults[["stateRegBoostResults"]])) return (jaspResults[["stateRegBoostResults"]]$object)
   
-  # Create results object
+  # Create results object and add options
   results <- list()
-  
   results[["spec"]] <- .classBoostCalcSpecs(dataset, options)
-  # results[["res"]] <- list()
   
   # Prepare data
   preds <- which(colnames(dataset) %in% .v(options$predictors)) # predictors
   target <- which(colnames(dataset) == .v(options$target)) # target
   if(options$indicator != "") indicator <- which(colnames(dataset) == .v(options$indicator))
   
-  # Deal with NAs
+  # Deal with NAs: apply roughfix or omit NA rows
   if (sum(is.na(dataset)) > 0) {
     
-    # If a predictor column consists of only NAs, exclude that column entirely
-    for (predictor in preds) {
-      if(sum(is.na(dataset[, predictor])) == nrow(dataset)) {
-        preds <- preds[-predictor]
+    if (options$applyModel == "applyImpute") {
+
+      idxApply <- which(is.na(dataset[, target]))
+
+      if (options$NAs == "roughfix") {
+        predImpute <- randomForest::na.roughfix(dataset[idxApply, preds])
+      } else {
+        predImpute <- na.omit(dataset[idxApply, preds])
       }
+
     }
     
-    # Option: apply na.roughfix or otherwise apply the default: na.omit (removes all rows that contain NA values)
-    if (options$missingValues == "roughfix") {
-      dataset <- randomForest::na.roughfix(dataset)
-    } else {
-      dataset <- na.omit(dataset)
-    }
+    if (options$NAs == "roughfix") dataset <- randomForest::na.roughfix(dataset) else dataset <- na.omit(dataset)
     
   }
   
   # Splitting the data into training set, test set, and application set
-  if (options$indicator != "") {
+  if (options$applyModel == "applyIndicator" && options$indicator != "") {
     
     idxApply <- which(dataset[, indicator] == 1)
     idxModel <- which(dataset[, indicator] == 0)
@@ -130,9 +133,9 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
     applyData <- dataset[idxApply, preds, drop = FALSE]
     modelData <- dataset[idxModel, ]
     
-  } else {
+    } else {
     
-    modelData <- dataset
+      modelData <- dataset
     
   }
   
@@ -152,7 +155,6 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
   if (nlevels(dataset[, target]) == 2) {
     
-    # distribution <- "bernoulli"
     distribution <- "multinomial" # should be bernoulli but that somehow screws up the function
     # does this even matter since multinomial distribution IS the bernoulli distribution when k = 2 and n = 1?
     # see Wikipedia multinomial distribution
@@ -166,14 +168,19 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   # Run Boosting
   results[["res"]] <- gbm::gbm(formula = formula, data = trainData, n.trees = results$spec$noOfTrees,
                                shrinkage = results$spec$shrinkage, interaction.depth = results$spec$int.depth,
-                               cv.folds = results$spec$cvFolds, bag.fraction = results$spec$bag.fraction,
+                               cv.folds = results$spec$modelOptimization, bag.fraction = results$spec$bag.fraction,
                                n.minobsinnode = results$spec$nNode, distribution = distribution)
   
   results[["data"]] <- list(trainData = trainData, testData = testData, testTarget = testTarget)
-  
-  if(results$spec$cvFolds > 0) results[["method"]] <- "cv" else results[["method"]] <- "OOB"
-  results[["optTrees"]] <- gbm::gbm.perf(results$res, plot.it = FALSE, method = results$method)[1]
   results[["relInf"]] <- summary(results$res, plot = FALSE)
+  
+  if(options$modelOptimization == "cv") results[["method"]] <- "cv" else results[["method"]] <- "OOB"
+  
+  if (options$modelOptimization != "noOpt") {
+    results[["optTrees"]] <- gbm::gbm.perf(results$res, plot.it = FALSE, method = results$method)[1]
+  } else {
+    results[["optTrees"]] <- results$spec$noOfTrees
+  }
   
   # Derive test set predictions and calculate test error rate
   prob <- gbm::predict.gbm(results$res, newdata = testData, n.trees = results$optTrees, type = "response")
@@ -187,10 +194,17 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   results[["testError"]] <- mean(testTarget != as.character(results$preds))
   results[["confTable"]] <- table("Pred" = results$preds, "True" = results$data$testTarget)
   
-  # Apply model to new data
-  if(options$indicator != "") {
+  # Apply model to new data if requested
+  if(options$applyModel == "applyIndicator" && options$indicator != "") {
+    
     applyProb <- gbm::predict.gbm(results$res, newdata = applyData, n.trees = results$optTrees, type = "response")
-    results[["apply"]] <- colnames(applyProb)[apply(applyProb, 1, which.max)]
+    results[["apply"]] <- data.frame(case = idxApply, pred = colnames(applyProb)[apply(applyProb, 1, which.max)])
+    
+  } else if (options$applyModel == "applyImpute") {
+
+    applyProb <- gbm::predict.gbm(results$res, newdata = predImpute, n.trees = results$optTrees, type = "response")
+    results[["apply"]] <- data.frame(case = idxApply, pred = colnames(applyProb)[apply(applyProb, 1, which.max)])
+    
   }
   
   # Save results to state
@@ -207,13 +221,10 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   if (options$noOfTrees == "manual") specs$noOfTrees <- as.integer(options$numberOfTrees) else specs$noOfTrees <- 100
   
   # Setting the number of variables considered at each split
-  if (options$shrinkage == "manual") specs$shrinkage <- options$shrinkage.parameter else specs$shrinkage <- .1
+  if (options$shrinkage == "manual") specs$shrinkage <- options$shrinkPar else specs$shrinkage <- .1
   
   # What percentage of the data should be used for training?
   if (options$int.depth == "manual") specs$int.depth <- options$int.depth.parameter else specs$int.depth <- 1
-  
-  # How many cv-folds should be used?
-  if (options$cvFolds == "manual") specs$cvFolds <- options$cvFoldsSpec else specs$cvFolds <- 0
   
   # What percentage of the data should be used for training?
   if (options$dataTrain == "manual") specs$dataTrain <- options$percentageDataTraining else specs$dataTrain <- .8
@@ -223,6 +234,9 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
   # Minimum number of observations in the terminal nodes of every tree
   if (options$nNode == "manual") specs$nNode <- options$nNodeSpec else specs$nNode <- 10
+  
+  # Should cross-validation be performed?
+  if (options$modelOptimization == "cv") specs$modelOptimization <- 10 else specs$modelOptimization <- 0
   
   return(specs)
 }
@@ -320,8 +334,8 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
     }
   } else {
     
-    classBoostConfTable$addColumnInfo(name = "pred_name", title = "", type = "string")
-    classBoostConfTable$addColumnInfo(name = "varname_pred", title = "", type = "string")
+    classBoostConfTable$addColumnInfo(name = "pred_name"    , title = "" , type = "string")
+    classBoostConfTable$addColumnInfo(name = "varname_pred" , title = "" , type = "string")
     classBoostConfTable$addColumnInfo(name = "varname_real1", title = ".", type = "integer")
     classBoostConfTable$addColumnInfo(name = "varname_real2", title = ".", type = 'integer')
     
@@ -356,23 +370,23 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
 }
 
 .classBoostApplyTable <- function(jaspResults, options, classBoostResults, ready, analysisOptions) {
-  if (!is.null(jaspResults[["classBoostApplyTable"]])) return()
-  if (options$indicator == "") return()
-  
-  classBoostTable$position <- 4
+  if (!is.null(jaspResults[["applyModel"]])) return()
+  if (options$applyModel == "noApp") return()
   
   # Create table and bind to jaspResults
   classBoostApplyTable <- createJaspTable(title = "Boosting Model Predictions")
   jaspResults[["classBoostApplyTable"]] <- classBoostApplyTable
-  jaspResults[["classBoostApplyTable"]]$dependOnOptions(c(analysisOptions, "classBoostApplyTable"))
+  jaspResults[["classBoostApplyTable"]]$dependOnOptions(c(analysisOptions, "applyModel"))
+  
+  classBoostApplyTable$position <- 4
   
   # Add column info
-  classBoostApplyTable$addColumnInfo(name = "row",  title = "Row", type = "integer")
-  classBoostApplyTable$addColumnInfo(name = "pred",  title = "Prediction", type = "number", format = "sf:4")
+  classBoostApplyTable$addColumnInfo(name = "case",  title = "Case", type = "integer")
+  classBoostApplyTable$addColumnInfo(name = "pred",  title = "Prediction", type = "string")
   
   # Add data per column
-  classBoostApplyTable[["row"]]  <- if (ready) as.numeric(rownames(as.data.frame(classBoostResults$apply))) else "."
-  classBoostApplyTable[["pred"]]  <- if (ready) as.numeric(classBoostResults$apply) else "."
+  classBoostApplyTable[["case"]]  <- if (ready) as.integer(classBoostResults$apply$case)   else "."
+  classBoostApplyTable[["pred"]]  <- if (ready) as.character(classBoostResults$apply$pred) else "."
   
 }
 
@@ -400,7 +414,8 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
   if (classBoostResults$method == "OOB") {
     
-    deviance <- data.frame(trees = 1:classBoostResults$res$n.trees, trainError = classBoostResults$res$train.error) 
+    deviance <- data.frame(trees = 1:classBoostResults$res$n.trees, 
+                           trainError = classBoostResults$res$train.error) 
     
     plotDeviance <- JASPgraphs::themeJasp(
       ggplot2::ggplot(data = deviance, mapping = ggplot2::aes(x = trees, y = trainError)) +
