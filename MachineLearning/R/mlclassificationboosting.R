@@ -30,8 +30,8 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   if (ready) errors <- .classBoostErrorHandling(dataset, options)
   
   # Save analysis options in an object so that they don't have to be listed every time
-  analysisOptions <- c("target", "predictors", "indicator", "noOfTrees", "numberOfTrees", "shrinkage", "shrinkPar",
-                       "int.depth", "int.depth.parameter", "modelOptimization", "dataTrain",
+  analysisOptions <- c("target", "predictors", "indicator", "applyModel", "noOfTrees", "numberOfTrees", "shrinkage", 
+                       "shrinkPar", "int.depth", "int.depth.parameter", "modelOptimization", "dataTrain",
                        "percentageDataTraining", "bag.fraction", "bag.fraction.spec", "seedBox", "seed", "NAs")
   
   # Compute (a list of) results from which tables and plots can be created
@@ -94,7 +94,7 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
 # Compute results
 .classBoostComputeResults <- function(jaspResults, dataset, options, analysisOptions) {
   
-  if (!is.null(jaspResults[["stateRegBoostResults"]])) return (jaspResults[["stateRegBoostResults"]]$object)
+  if (!is.null(jaspResults[["stateClassBoostResults"]])) return (jaspResults[["stateClassBoostResults"]]$object)
   
   # Create results object and add options
   results <- list()
@@ -208,8 +208,8 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   }
   
   # Save results to state
-  jaspResults[["stateclassBoostResults"]] <- createJaspState(results)
-  jaspResults[["stateclassBoostResults"]]$dependOnOptions(analysisOptions)
+  jaspResults[["stateClassBoostResults"]] <- createJaspState(results)
+  jaspResults[["stateClassBoostResults"]]$dependOnOptions(analysisOptions)
   
   return(results)
 }

@@ -36,6 +36,12 @@
 					"qml":								"mlregressionrandomforest.qml",
 					"function":						"MLRegressionRandomForest",
 					"usesJaspResults":		true
+				},
+				{
+					"title":							"Regularized Linear Regression",
+					"qml":								"mlregressionregularized.qml",
+					"function":						"MLRegressionRegularized",
+					"usesJaspResults":		true
 				}
 			]
 		},

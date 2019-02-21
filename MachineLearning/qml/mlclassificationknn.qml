@@ -53,7 +53,7 @@ Form {
                 name: "noOfNearestNeighbours"
 
                 GroupBox {
-                    RadioButton { text: qsTr("Auto")                ; name: "auto" ; checked: true }
+                    RadioButton { text: qsTr("Auto")                ; name: "auto" ; checked: true}
                     RowLayout {
                         RadioButton { text: qsTr("Manual")              ; name: "manual"; id: manualType }
                         TextField {

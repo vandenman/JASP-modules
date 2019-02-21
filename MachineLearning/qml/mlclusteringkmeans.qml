@@ -24,7 +24,7 @@ Form {
     id: form
 
     VariablesForm {
-        defaultAssignedVariablesList {
+        AssignedVariablesList {
             name: "predictors"
             title: qsTr("Variables")
             singleItem: false
@@ -36,7 +36,7 @@ Form {
         columns: 2
 
         ColumnLayout {
-            ButtonGroup {
+            RadioButtonGroup {
                 title: qsTr("Clusters")
                 name: "noOfClusters"
 
@@ -171,7 +171,7 @@ Form {
                 text: "1"
             }
 
-            ButtonGroup {
+            RadioButtonGroup {
                 title: qsTr("Algorithm")
                 name: "algorithm"
 
@@ -180,7 +180,7 @@ Form {
                 RadioButton { text: qsTr("MacQueen")                    ; name: "macQueen" }
             }
 
-            ButtonGroup {
+            RadioButtonGroup {
                 title: qsTr("Iterations")
                 name: "noOfIterations"
 
@@ -197,7 +197,7 @@ Form {
                 }
             }
 
-            ButtonGroup {
+            RadioButtonGroup {
                 title: qsTr("Random sets")
                 name: "noOfRandomSets"
 

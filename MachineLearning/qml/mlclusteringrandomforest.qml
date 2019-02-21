@@ -24,7 +24,7 @@ Form {
     id: form
 
     VariablesForm {
-        defaultAssignedVariablesList {
+        AssignedVariablesList {
             name: "predictors"
             title: qsTr("Variables")
             singleItem: false
