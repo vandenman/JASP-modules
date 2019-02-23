@@ -31,16 +31,17 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   
   # Save analysis options in an object so that they don't have to be listed every time
   analysisOptions <- c("target", "predictors", "indicator", "penalty", "applyModel", "shrinkage", "lambda",
-                       "elasticSpec", "alphaElastic", "dataTrain", "percentageDataTraining", "seedBox", "seed", "NAs")
+                       "elasticSpec", "alphaElastic", "standardize", "intercept", "dfmax", "dfmaxSpec", "dataTrain",
+                       "percentageDataTraining", "seedBox", "seed", "NAs")
   
   # Compute (a list of) results from which tables and plots can be created
   if (ready) regRegResults <- .regRegComputeResults(jaspResults, dataset, options, analysisOptions)
   
   # Output containers, tables, and plots based on the results
-  .regRegTable(                jaspResults, options, regRegResults, ready, analysisOptions)
-  # .regRegRelInfTable(          jaspResults, options, regRegResults, ready, analysisOptions)
-  # .regRegApplyTable(           jaspResults, options, regRegResults, ready, analysisOptions)
-  # .regRegRelInfPlot(           jaspResults, options, regRegResults, ready, analysisOptions)
+  .regRegTable(        jaspResults, options, regRegResults, ready, analysisOptions)
+  .regRegCoefTable(    jaspResults, options, regRegResults, ready, analysisOptions)
+  # .regRegApplyTable( jaspResults, options, regRegResults, ready, analysisOptions)
+  # .regRegRelInfPlot( jaspResults, options, regRegResults, ready, analysisOptions)
   
   return()
 }
@@ -136,17 +137,27 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   testTarget <- as.numeric(modelData[idxTest, target])
   
   # Run regularized regression
-  results[["res"]] <- glmnet::glmnet(trainPreds, trainTarget, family = "gaussian", alpha = 0) # results$spec$alpha
+  results[["res"]] <- glmnet::glmnet(x = trainPreds, y = trainTarget, family = "gaussian", alpha = results$spec$alpha,
+                                     standardize = results$spec$standardize, intercept = results$spec$intercept,
+                                     dfmax = results$spec$dfmax)
   
   results[["data"]] <- list(trainPreds = trainPreds, trainTarget = trainTarget, 
                             testPreds = testPreds, testTarget = testTarget)
-  # results[["relInf"]] <- summary(results$res, plot = FALSE)
   
   # Derive test set predictions and calculate test error rate
-  # prob <- gbm::predict.gbm(results$res, newdata = testData, n.trees = results$optTrees, type = "response")
-    
+  modPred <- predict(results$res, newx = testPreds, s = results$spec$lambda, alpha = results$spec$alpha,
+                     standardize = results$spec$standardize, intercept = results$spec$intercept,
+                     dfmax = results$spec$dfmax, type = "link", exact = TRUE,
+                     x = trainPreds, y = trainTarget)
+  
+  # Coefficients table
+  results[["coefs"]] <- predict(results$res, newx = testPreds, s = results$res$lambda, alpha = results$spec$alpha,
+                                standardize = results$spec$standardize, intercept = results$spec$intercept,
+                                dfmax = results$spec$dfmax, type = "coefficients",
+                                exact = TRUE, x = trainPreds, y = trainTarget)
+  
   # results[["testError"]] <- mean(testTarget != as.character(results$preds))
-  results[["testError"]] <- 0.01
+  results[["testMSE"]] <- mean((modPred - testTarget)^2)
   results[["shrinkage"]] <- results$spec$shrinkage
   
   # Apply model to new data if requested
@@ -169,18 +180,22 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   return(results)
 }
 
-.regRegCalcSpecs <- function(modelData, options) {
+.regRegCalcSpecs <- function(dataset, options) {
+  
   specs <- list()
   
+  # Specifying a lambda sequence to build the model on
+  specs$lambdaSeq <- 10^seq(10, -2, length = 100)
+  
   # Setting the shrinkage parameter lambda
-  if (options$shrinkage == "manual") specs$shrinkage <- options$lambda else specs$shrinkage <- 0.2
+  if (options$shrinkage == "manual") specs$lambda <- options$lambda else specs$lambda <- 10
   
   # Setting the alpha parameter (0 = Ridge, 1 = Lasso, inbetween = Elastic Net)
-  if (options$penalty != "ridge" && options$penalty != "lasso") {
+  if (options$penalty == "elasticNet") {
     
-    if (options$elasticSpec == "Optimize") {
+    if (options$elasticSpec == "optimize") {
       specs$alphaElastic <- NULL # tk add optimization for alpha
-    } else if (options$elasticSpec == "Manual") {
+    } else if (options$elasticSpec == "manual") {
       specs$alphaElastic <- options$alphaElastic
     } else {
       specs$alphaElastic <- 0.5
@@ -191,14 +206,23 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   # Choosing the regularization method
   if (options$penalty == "ridge") {
     specs$alpha <- 0
-    specs$method <- "Ridge"
+    specs$penalty <- "L2 (Ridge)"
   } else if (options$penalty == "lasso") {
     specs$alpha <- 1
-    specs$method <- "Lasso"
+    specs$penalty <- "L1 (Lasso)"
   } else {
     specs$alpha <- specs$alphaElastic
-    specs$method <- "Elastic Net"
+    specs$penalty <- "Elastic Net"
   }
+  
+  # Should the data be standardized?
+  if (options$standardize == "on") specs$standardize <- TRUE else specs$standardize <- FALSE
+  
+  # Should the intercept be fitted?
+  if (options$intercept == "on") specs$intercept <- TRUE else specs$intercept <- FALSE
+  
+  # Should the intercept be fitted? (currently disabled because this causes a problem with ridge)
+  if (options$dfmax == "manual") specs$dfmax <- options$dfmaxSpec else specs$dfmax <- ncol(dataset) + 1
   
   # What percentage of the data should be used for training?
   if (options$dataTrain == "manual") specs$dataTrain <- options$percentageDataTraining else specs$dataTrain <- .8
@@ -218,39 +242,43 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   regRegTable$position <- 1
   
   # Add column info
-  if(options$dataTrain == "auto" || options$percentageDataTraining < 1){
-    regRegTable$addColumnInfo(name = "testError",  title = "Test Set Error", type = "number", format = "sf:4")
+  if (options$dataTrain == "auto" || options$percentageDataTraining < 1){
+    regRegTable$addColumnInfo(name = "testMSE",  title = "Test Set MSE", type = "number", format = "sf:4")
   }
-  regRegTable$addColumnInfo(name = "method"   ,  title = "Method"   , type = "string")
-  regRegTable$addColumnInfo(name = "shrinkage",  title = "Shrinkage", type = "number", format = "sf:4")
+  regRegTable$addColumnInfo(name = "penalty"  ,  title = "Penalty"  , type = "string")
+  if (options$penalty == "elasticNet") {
+    regRegTable$addColumnInfo(name = "alpha",  title = "α", type = "number", format = "sf:4") 
+  }
+  regRegTable$addColumnInfo(name = "lambda",  title = "λ", type = "number", format = "sf:4")
   
   # Add data per column
-  if(options$dataTrain == "auto" || options$percentageDataTraining < 1){
-    regRegTable[["testError"]]  <- if (ready) regRegResults$testError else "."
+  if (options$dataTrain == "auto" || options$percentageDataTraining < 1){
+    regRegTable[["testMSE"]]  <- if (ready) regRegResults$testMSE    else "."
   }
-  regRegTable[["method"]]  <- if (ready) regRegResults$spec$method else "."
-  regRegTable[["shrinkage"]]  <- if (ready) regRegResults$shrinkage else "."
+  regRegTable[["penalty"]]    <- if (ready) regRegResults$spec$penalty else "."
+  if (options$penalty == "elasticNet") regRegTable[["alpha"]] <- if (ready) regRegResults$spec$alphaElastic else "."
+  regRegTable[["lambda"]]  <- if (ready) regRegResults$spec$lambda  else "."
 
 }
 
-.regRegRelInfTable <- function(jaspResults, options, regRegResults, ready, analysisOptions) {
-  if (!is.null(jaspResults[["tableVarImp"]])) return()
-  if (!options$regRegRelInfTable) return()
+.regRegCoefTable <- function(jaspResults, options, regRegResults, ready, analysisOptions) {
+  if (!is.null(jaspResults[["regRegCoefTable"]])) return()
+  if (!options$regRegCoefTable) return()
   
   # Create table
-  regRegRelInfTable <- createJaspTable(title = "Relative Influence")
-  jaspResults[["regRegRelInfTable"]] <- regRegRelInfTable
-  jaspResults[["regRegRelInfTable"]]$dependOnOptions(c(analysisOptions, "regRegRelInfTable"))
+  regRegRelInfTable <- createJaspTable(title = "Regression Coefficients")
+  jaspResults[["regRegCoefTable"]] <- regRegRelInfTable
+  jaspResults[["regRegCoefTable"]]$dependOnOptions(c(analysisOptions, "regRegCoefTable"))
   
   regRegRelInfTable$position <- 3
   
   # Add column info
-  regRegRelInfTable$addColumnInfo(name = "predictor",  title = " ", type = "string")
-  regRegRelInfTable$addColumnInfo(name = "relIn",  title = "Relative Influence", type = "number", format = "sf:4")
+  regRegRelInfTable$addColumnInfo(name = "var",  title = " ", type = "string")
+  regRegRelInfTable$addColumnInfo(name = "coefs",  title = "Coefficient", type = "number", format = "sf:4")
   
   # Add data per column
-  regRegRelInfTable[["predictor"]]  <- if(ready) .unv(regRegResults$relInf$var) else "."
-  regRegRelInfTable[["relIn"]]  <- if(ready) regRegResults$relInf$rel.inf else "."
+  regRegRelInfTable[["var"]]  <- if(ready) .unv(rownames(regRegResults$coefs)) else "."
+  regRegRelInfTable[["coefs"]]  <- if(ready) as.numeric(regRegResults$coefs[, 1]) else "."
   
 }
 

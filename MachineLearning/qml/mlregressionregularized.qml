@@ -55,9 +55,9 @@ Form
     RadioButtonGroup
     {
         name: "penalty"
-        RadioButton { value: "ridge"      ; text: qsTr("Ridge"); checked: true        }
-        RadioButton { value: "lasso"      ; text: qsTr("Lasso")                       }
-        RadioButton { value: "elasticNet" ; text: qsTr("Elastic Net")                 }
+        RadioButton { value: "ridge"      ; text: qsTr("Ridge"); checked: true          }
+        RadioButton { value: "lasso"      ; text: qsTr("Lasso")                         }
+        RadioButton { value: "elasticNet" ; text: qsTr("Elastic Net"); id: elasticNet   }
     }
     }
 
@@ -78,7 +78,7 @@ Form
     GroupBox {
         title: qsTr("Tables")
 
-        CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative Influence Table")            }
+        CheckBox { name: "regRegCoefTable";	text: qsTr("Coefficients table")            }
     }
 
     ExpanderButton
@@ -91,20 +91,45 @@ Form
             RadioButtonGroup {
                 title: qsTr("Shrinkage")
                 name: "shrinkage"
-                RadioButton { text: qsTr("Auto")    ; name: "auto"   ; checked: true              }
-                RadioButton { text: qsTr("Optimize"); name: "opt"                                 }
+                RadioButton { text: qsTr("Auto")    ; name: "auto"   ; checked: true                     }
+                RadioButton { text: qsTr("Optimize"); name: "opt"                                        }
                 RadioButton { text: qsTr("Manual")  ; name: "manual" ; childrenOnSameRow: true
-                    DoubleField { name: "lambda"   ; defaultValue: 0.2; min: 0; max: 1            }
+                    DoubleField { name: "lambda"   ; defaultValue: 10 ; min: 0; max: 999999; fieldWidth: 60 }
                 }
             }
 
             RadioButtonGroup {
-                title: qsTr("Alpha (elastic net only)")
+                title: qsTr("α (Elastic Net only)")
                 name: "elasticSpec"
+                enabled: elasticNet.checked
                 RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true               }
                 RadioButton { text: qsTr("Optimize"); name: "opt"                                 }
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
-                    DoubleField { name: "alphaElastic"   ; defaultValue: 0.5; min: 0; max: 1             }
+                    DoubleField { name: "alphaElastic"   ; defaultValue: 0.5; min: 0; max: 1; fieldWidth: 60 }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Standardize data")
+                name: "standardize"
+                RadioButton { text: qsTr("On") ; name: "on"  ; checked: true               }
+                RadioButton { text: qsTr("Off"); name: "off"                                 }
+            }
+
+
+            RadioButtonGroup {
+                title: qsTr("Fit intercept")
+                name: "intercept"
+                RadioButton { text: qsTr("On") ; name: "on"  ; checked: true               }
+                RadioButton { text: qsTr("Off"); name: "off"                                 }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Maximum No of Variables in Model")
+                name: "dfmax"
+                RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true               }
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    IntegerField { name: "dfmaxSpec" ; defaultValue: 10; min: 1; max: 999999      }
                 }
             }
 
