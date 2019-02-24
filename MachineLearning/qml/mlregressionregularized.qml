@@ -56,7 +56,7 @@ Form
     {
         name: "penalty"
         RadioButton { value: "ridge"      ; text: qsTr("Ridge"); checked: true          }
-        RadioButton { value: "lasso"      ; text: qsTr("Lasso")                         }
+        RadioButton { value: "lasso"      ; text: qsTr("Lasso"); id: lasso         }
         RadioButton { value: "elasticNet" ; text: qsTr("Elastic Net"); id: elasticNet   }
     }
     }
@@ -89,23 +89,21 @@ Form
         {
 
             RadioButtonGroup {
-                title: qsTr("Shrinkage")
+                title: qsTr("λ (shrinkage)")
                 name: "shrinkage"
                 RadioButton { text: qsTr("Auto")    ; name: "auto"   ; checked: true                     }
-                RadioButton { text: qsTr("Optimize"); name: "opt"                                        }
                 RadioButton { text: qsTr("Manual")  ; name: "manual" ; childrenOnSameRow: true
-                    DoubleField { name: "lambda"   ; defaultValue: 10 ; min: 0; max: 999999; fieldWidth: 60 }
+                    DoubleField { name: "lambda"; defaultValue: 10 ; min: 0; max: 999999; fieldWidth: 60 }
                 }
             }
 
             RadioButtonGroup {
-                title: qsTr("α (Elastic Net only)")
+                title: qsTr("α (elastic net only)")
                 name: "elasticSpec"
                 enabled: elasticNet.checked
                 RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true               }
-                RadioButton { text: qsTr("Optimize"); name: "opt"                                 }
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
-                    DoubleField { name: "alphaElastic"   ; defaultValue: 0.5; min: 0; max: 1; fieldWidth: 60 }
+                    DoubleField { name: "alphaElastic"; defaultValue: 0.5; min: 0.01; max: 0.99; fieldWidth: 50 }
                 }
             }
 
@@ -125,11 +123,21 @@ Form
             }
 
             RadioButtonGroup {
-                title: qsTr("Maximum No of Variables in Model")
-                name: "dfmax"
+                title: qsTr("Max. No. of Nonzero Coefficients")
+                name: "pmax"
+                enabled: lasso.checked || elasticNet.checked
                 RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true               }
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
-                    IntegerField { name: "dfmaxSpec" ; defaultValue: 10; min: 1; max: 999999      }
+                    IntegerField { name: "pmaxSpec" ; defaultValue: 1; min: 1; max: 999999      }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Convergence threshold")
+                name: "thresh"
+                RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true               }
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    DoubleField { name: "threshSpec"; defaultValue: 1e-7; min: 1e-999; max: 1; fieldWidth: 60 }
                 }
             }
 
@@ -153,6 +161,7 @@ Form
         Group
         {
             CheckBox { name: "plotPredPerf";       text: qsTr("Predictive performance plot")   }
+            CheckBox { name: "plotCVLambda";       text: qsTr("Lambda evaluation plot")        }
         }
     }
 
