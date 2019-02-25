@@ -72,6 +72,11 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
                all.target = options$indicator, observations.amount = nrow(dataset), exitAnalysisIfErrors = TRUE)
   }
   
+  # Error Check 3: If missing target values should be imputed, there have to be missing values
+  if (options$applyModel == "applyImpute" && is.na(dataset[, which(colnames(dataset) == .v(options$target))]) == 0) {
+    JASP:::.quitAnalysis("Model cannot be applied to missing values in target because there are no missing values.")
+  }
+  
 }
 
 # Compute results
@@ -94,11 +99,19 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
     if (options$applyModel == "applyImpute") {
 
       idxApply <- which(is.na(dataset[, target]))
-
+      
+      # dropping NAs from predictors and assigning 0 to target-NAs; otherwise they are dropped below
       if (options$NAs == "roughfix") {
-        predImpute <- randomForest::na.roughfix(dataset[idxApply, c(preds, target), drop = FALSE])
+        
+        applyData <- cbind(randomForest::na.roughfix(dataset[idxApply, preds, drop = FALSE]), 
+                           dataset[idxApply, target, drop = FALSE])
+        applyData[is.na(applyData)] <- 0
+        
       } else {
-        predImpute <- na.omit(dataset[idxApply, c(preds, target), drop = FALSE])
+        
+        applyData <- cbind(na.omit(dataset[idxApply, preds, drop = FALSE]), dataset[idxApply, target, drop = FALSE])
+        applyData[is.na(applyData)] <- 0
+        
       }
 
     } else if (options$NAs == "roughfix") {
@@ -119,13 +132,12 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
     idxApply <- which(dataset[, indicator] == 1)
     idxModel <- which(dataset[, indicator] == 0)
     
-    applyData <- dataset[idxApply, c(preds, target), drop = FALSE]
-    modelData <- dataset[idxModel, ]
+    applyData <- dataset[idxApply, , drop = FALSE]
+    modelData <- dataset[idxModel, , drop = FALSE]
     
     } else if (options$applyModel == "applyImpute") {
       
-      applyData <- predImpute
-      modelData <- dataset[-idxApply, ]
+      modelData <- dataset[-idxApply, , drop = FALSE]
       
     } else {
     
@@ -149,15 +161,14 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   testPreds <- model.matrix(formula, modelData[idxTest, c(preds, target), drop = FALSE])[, -1]
   testTarget <- as.numeric(modelData[idxTest, target])
   
-  if (!is.null(applyData)) applyData <- model.matrix(formula, applyData)[, -1]
+  if (!is.null(applyData)) applyData <- model.matrix(formula, applyData[, , drop = FALSE])[, -1]
   
   # Run regularized regression
-  results[["res"]] <- glmnet::cv.glmnet(x = trainPreds, y = trainTarget, nfolds = 10,
-                                        type.measure = "deviance", family = "gaussian",
+  results[["res"]] <- glmnet::cv.glmnet(x = trainPreds, y = trainTarget, nfolds = 10, type.measure = "deviance",
+                                        family = "gaussian", weights = rep(1, nrow(trainPreds)), offset = NULL,
                                         alpha = results$spec$alpha, standardize = results$spec$standardize,
                                         intercept = results$spec$intercept, thresh = results$spec$thresh,
-                                        if(options$penalty != "ridge") pmax = results$spec$pmax,
-                                        weights = rep(1, nrow(trainPreds)))
+                                        if(options$penalty != "ridge") pmax = results$spec$pmax)
   
   results[["cvMSE"]] <- results$res$cvm[results$res$lambda == results$res$lambda.min]
   results[["cvMSELambda"]] <- data.frame(lambda = results$res$lambda, MSE = results$res$cvm, sd = results$res$cvsd)
@@ -173,9 +184,10 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   }
   
   modPred <- predict(results$res, newx = testPreds, s = results$lambda, type = "link", exact = TRUE,
-                     x = trainPreds, y = trainTarget, family = "gaussian", alpha = results$spec$alpha,
-                     standardize = results$spec$standardize, intercept = results$spec$intercept,
-                     thresh = results$spec$thresh, if(options$penalty != "ridge") pmax = results$spec$pmax)
+                     x = trainPreds, y = trainTarget, weights = rep(1, nrow(trainPreds)), offset = NULL,
+                     alpha = results$spec$alpha, standardize = results$spec$standardize,
+                     intercept = results$spec$intercept, thresh = results$spec$thresh,
+                     if(options$penalty != "ridge") pmax = results$spec$pmax)
   
   # Predictive performance
   results[["predPerf"]] <- data.frame(pred = as.numeric(modPred), obs = as.numeric(testTarget))
@@ -188,9 +200,10 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   if((options$applyModel == "applyIndicator" && options$indicator != "") || options$applyModel == "applyImpute") {
     
     applyPred <- predict(results$res, newx = applyData, s = results$lambda, type = "link", exact = TRUE,
-                         x = trainPreds, y = trainTarget, family = "gaussian", alpha = results$spec$alpha,
-                         standardize = results$spec$standardize, intercept = results$spec$intercept,
-                         thresh = results$spec$thresh, if(options$penalty != "ridge") pmax = results$spec$pmax)
+                         x = trainPreds, y = trainTarget, weights = rep(1, nrow(trainPreds)), offset = NULL,
+                         alpha = results$spec$alpha, standardize = results$spec$standardize,
+                         intercept = results$spec$intercept, thresh = results$spec$thresh,
+                         if(options$penalty != "ridge") pmax = results$spec$pmax)
     
     results[["apply"]] <- data.frame(case = idxApply, pred = as.numeric(applyPred))
     
@@ -283,6 +296,10 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   }
   
   regRegTable$addColumnInfo(name = "lambda",  title = "λ", type = "number", format = "sf:4")
+  
+  if (regRegResults$spec$lambda == 0) {
+    regRegTable$addFootnote("With λ equal to 0, linear regression is performed.", symbol="<i>Note.</i>") 
+  }
   
   # Add data per column
   if (options$dataTrain == "auto" || options$percentageDataTraining < 1){

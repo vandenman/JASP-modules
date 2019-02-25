@@ -78,7 +78,7 @@ Form
     GroupBox {
         title: qsTr("Tables")
 
-        CheckBox { name: "regRegCoefTable";	text: qsTr("Coefficients table")            }
+        CheckBox { name: "regRegCoefTable";	text: qsTr("Coefficients table"); checked: true           }
     }
 
     ExpanderButton
@@ -93,7 +93,7 @@ Form
                 name: "shrinkage"
                 RadioButton { text: qsTr("Auto")    ; name: "auto"   ; checked: true                     }
                 RadioButton { text: qsTr("Manual")  ; name: "manual" ; childrenOnSameRow: true
-                    DoubleField { name: "lambda"; defaultValue: 10 ; min: 0; max: 999999; fieldWidth: 60 }
+                    DoubleField { name: "lambda"; defaultValue: 1 ; min: 0; max: 999999; fieldWidth: 60 }
                 }
             }
 
@@ -123,6 +123,7 @@ Form
             }
 
             RadioButtonGroup {
+                visible: false
                 title: qsTr("Max. No. of Nonzero Coefficients")
                 name: "pmax"
                 enabled: lasso.checked || elasticNet.checked
@@ -161,7 +162,7 @@ Form
         Group
         {
             CheckBox { name: "plotPredPerf";       text: qsTr("Predictive performance plot")   }
-            CheckBox { name: "plotCVLambda";       text: qsTr("Lambda evaluation plot")        }
+            CheckBox { name: "plotCVLambda";       text: qsTr("λ evaluation plot")        }
         }
     }
 
