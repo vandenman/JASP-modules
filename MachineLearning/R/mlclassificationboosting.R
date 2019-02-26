@@ -31,20 +31,21 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   
   # Save analysis options in an object so that they don't have to be listed every time
   analysisOptions <- c("target", "predictors", "indicator", "applyModel", "noOfTrees", "numberOfTrees", "shrinkage", 
-                       "shrinkPar", "int.depth", "int.depth.parameter", "modelOptimization", "dataTrain",
-                       "percentageDataTraining", "bag.fraction", "bag.fraction.spec", "seedBox", "seed", "NAs")
+                       "shrinkPar", "int.depth", "int.depth.parameter", "modelOptimization", "nNode", "nNodeSpec",
+                       "dataTrain", "percentageDataTraining", "bag.fraction", "bag.fraction.spec", "seedBox", "seed",
+                       "NAs")
   
   # Compute (a list of) results from which tables and plots can be created
   if (ready) classBoostResults <- .classBoostComputeResults(jaspResults, dataset, options, analysisOptions)
   
   # Output containers, tables, and plots based on the results
-  .classBoostTable(                jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostConfTable(            jaspResults, options, classBoostResults, ready, analysisOptions, dataset)
-  .classBoostRelInfTable(          jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostApplyTable(           jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostRelInfPlot(           jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostPlotDeviance(         jaspResults, options, classBoostResults, ready, analysisOptions)
-  .classBoostPlotOOBChangeDev(     jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostTable(           jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostConfTable(       jaspResults, options, classBoostResults, ready, analysisOptions, dataset)
+  .classBoostRelInfTable(     jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostApplyTable(      jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostRelInfPlot(      jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostPlotDeviance(    jaspResults, options, classBoostResults, ready, analysisOptions)
+  .classBoostPlotOOBChangeDev(jaspResults, options, classBoostResults, ready, analysisOptions)
   
   return()
 }
@@ -412,6 +413,8 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
   if (!options$plotDeviance) return()
   if (!ready) return()
   
+  if (nlevels(classBoostResults$data$testTarget) > 2L) ylab <- "Multinomial Deviance" else ylab <- "Binomial Deviance"
+  
   if (classBoostResults$method == "OOB") {
     
     deviance <- data.frame(trees = 1:classBoostResults$res$n.trees, 
@@ -421,7 +424,7 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
       ggplot2::ggplot(data = deviance, mapping = ggplot2::aes(x = trees, y = trainError)) +
         ggplot2::geom_line(size = 1) +
         ggplot2::xlab("Trees") +
-        ggplot2::ylab("Deviance") +
+        ggplot2::ylab(ylab) +
       ggplot2::geom_vline(xintercept = classBoostResults$optTrees, color = "lightgray", linetype = "dashed")
     )
     
@@ -436,7 +439,7 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
         ggplot2::geom_line(size = 1) +
         ggplot2::geom_line(mapping = ggplot2::aes(x = trees, y = cvError), size = 1, colour = "aquamarine4") +
         ggplot2::xlab("Trees") +
-        ggplot2::ylab("Deviance") +
+        ggplot2::ylab(ylab) +
         ggplot2::geom_vline(xintercept = classBoostResults$optTrees, color = "lightgray", linetype = "dashed")
     )
     
@@ -454,12 +457,18 @@ MLClassificationBoosting <- function(jaspResults, dataset, options, ...) {
     
   oobDev <- data.frame(trees = 1:classBoostResults$res$n.trees, oobImprove = classBoostResults$res$oobag.improve)
   
+  if (nlevels(classBoostResults$data$testTarget) > 2L) {
+    ylab <- "OOB Change in \n Multinomial Deviance"
+  } else {
+    ylab <- "OOB Change in \n Binomial Deviance"
+  }
+  
   plotOOBChangeDev <- JASPgraphs::themeJasp(
     ggplot2::ggplot(data = oobDev, mapping = ggplot2::aes(x = trees, y = oobImprove)) +
       ggplot2::geom_line(size = 1) +
       ggplot2::geom_smooth(size = 1, colour = "darkred", se = FALSE) +
       ggplot2::xlab("Trees") +
-      ggplot2::ylab("OOB Change in Deviance") +
+      ggplot2::ylab(ylab) +
       ggplot2::geom_vline(xintercept = classBoostResults$optTrees, color = "lightgray", linetype = "dashed")
     )
   

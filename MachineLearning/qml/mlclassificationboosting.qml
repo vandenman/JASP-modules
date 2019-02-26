@@ -76,7 +76,7 @@ Form
         {
 
             RadioButtonGroup {
-                title: qsTr("Number of Trees for Training")
+                title: qsTr("Number of trees for training")
                 name: "noOfTrees"
                 RadioButton { name: "auto"  ; text: qsTr("Auto")   ; checked: true}
                 RadioButton { name: "manual"; text: qsTr("Manual") ; childrenOnSameRow: true
@@ -87,14 +87,14 @@ Form
             RadioButtonGroup {
                 title: qsTr("Shrinkage")
                 name: "shrinkage"
-                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
-                    DoubleField { name: "shrinkPar"; defaultValue: 0.1; min: 0; max: 1; fieldWidth: 60 }
+                    DoubleField { name: "shrinkPar" ; defaultValue: 0.1; min: 0; max: 1; fieldWidth: 60 }
                 }
             }
 
             RadioButtonGroup {
-                title: qsTr("Interaction Depth")
+                title: qsTr("Interaction depth")
                 name: "int.depth"
                 RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
@@ -103,7 +103,7 @@ Form
             }
 
             RadioButtonGroup {
-                title: qsTr("Min. No. Observations in Node")
+                title: qsTr("Min. no. observations in node")
                 name: "nNode"
                 RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
@@ -134,9 +134,9 @@ Form
             RadioButtonGroup {
                 title: qsTr("Model optimization")
                 name: "modelOptimization"
-                RadioButton { text: qsTr("None")                    ; name: "noOpt"; checked: true }
+                RadioButton { text: qsTr("10-fold cross-validation"); name: "cv"   ; checked: true }
                 RadioButton { text: qsTr("Out-of-bag")              ; name: "oob"                  }
-                RadioButton { text: qsTr("10-fold cross-validation"); name: "cv"                   }
+                RadioButton { text: qsTr("None")                    ; name: "noOpt"                }
             }
 
         }

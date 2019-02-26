@@ -27,19 +27,19 @@ Form {
         AssignedVariablesList {
             name: "target"
             title: qsTr("Target")
-            singleItem: true
+            singleVariable: true
             allowedColumns: ["nominal"]
         }
         AssignedVariablesList {
                     name: "predictors"
                     title: qsTr("Predictors")
-                    singleItem: false
+                    singleVariable: false
                     allowedColumns: ["nominal", "scale", "ordinal"]
                 }
         AssignedVariablesList {
                     name: "indicator"
                     title: qsTr("Apply indicator (optional)")
-                    singleItem: true
+                    singleVariable: true
                     allowedColumns: ["nominal"]
                 }
     }
@@ -190,13 +190,8 @@ Form {
 
                 }
 
-                TextField {
-                    label.text: qsTr("Seed")
-                    name: "seed"
-                    inputType: "integer"
-                    validator: IntValidator {bottom: 0; top: 9999}
-                    text: "1"
-                }
+                DoubleField { label: qsTr("Seed"); name: "seed"; defaultValue: 1 }
+
             }
 
             ColumnLayout {

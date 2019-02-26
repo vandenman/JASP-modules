@@ -297,7 +297,7 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   
   regRegTable$addColumnInfo(name = "lambda",  title = "λ", type = "number", format = "sf:4")
   
-  if (regRegResults$spec$lambda == 0) {
+  if (options$lambda == 0) {
     regRegTable$addFootnote("With λ equal to 0, linear regression is performed.", symbol="<i>Note.</i>") 
   }
   
