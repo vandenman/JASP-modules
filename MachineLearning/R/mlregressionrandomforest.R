@@ -346,11 +346,11 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 
 .regRanForPlotPredPerformance <- function(jaspResults, options, regRanForResults, ready) {
   if (!options$plotPredPerformance) return()
-  
+  regRanForResults$data$yTrain
   if(regRanForResults$spec$dataTrainingModel == 1){
-    predPerformance <- data.frame(true = regRanForResults$res$predicted, predicted = regRanForResults$data$yTrain) 
+    predPerformance <- data.frame(true = regRanForResults$data$yTrain, predicted = regRanForResults$res$predicted) 
   } else {
-    predPerformance <- data.frame(true = regRanForResults$res$test$predicted, predicted = regRanForResults$data$yTest) 
+    predPerformance <- data.frame(true = regRanForResults$data$yTest, predicted = regRanForResults$res$test$predicted) 
   }
   
   limits <- c(0, round(max(c(max(floor(predPerformance$true)), max(floor(predPerformance$predicted)))), -1))

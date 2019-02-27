@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2013-2018 University of Amsterdam
+// Copyright (C) 2013-2019 University of Amsterdam
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -15,32 +15,179 @@
 // License along with this program.  If not, see
 // <http://www.gnu.org/licenses/>.
 //
+
 import QtQuick 2.8
 import QtQuick.Layouts 1.3
 import JASP.Controls 1.0
-import JASP.Widgets 1.0
+import JASP.Theme 1.0
 
-Form {
-    id: form
+// All Analysis forms must be built with the From QML item
+Form
+{
+    usesJaspResults: true
 
     VariablesForm {
-        defaultAssignedVariablesList {
+        AssignedVariablesList {
             name: "target"
             title: qsTr("Target")
-            singleItem: true
+            singleVariable: true
             allowedColumns: ["scale"]
         }
         AssignedVariablesList {
                     name: "predictors"
                     title: qsTr("Predictors")
-                    singleItem: false
+                    singleVariable: false
                     allowedColumns: ["nominal", "scale", "ordinal"]
                 }
         AssignedVariablesList {
                     name: "indicator"
                     title: qsTr("Apply indicator (optional)")
-                    singleItem: true
+                    singleVariable: true
                     allowedColumns: ["nominal"]
                 }
+    }
+
+    GroupBox
+    {
+
+    title: qsTr("Model application")
+
+    RadioButtonGroup
+    {
+        name: "applyModel"
+        RadioButton { value: "noApp"         ; text: qsTr("Do not apply model"); checked: true        }
+        RadioButton { value: "applyIndicator"; text: qsTr("Apply model according to indicator")       }
+        RadioButton { value: "applyImpute"   ; text: qsTr("Apply model to missing values in target")  }
+    }
+    }
+
+    GroupBox {
+        title: qsTr("Tables")
+
+        CheckBox { name: "regBoostRelInfTable";	text: qsTr("Relative Influence Table")            }
+    }
+
+    ExpanderButton
+    {
+        title: qsTr("Model Specifications")
+
+        GridLayout
+        {
+
+            RadioButtonGroup {
+                title: qsTr("Number of trees for training")
+                name: "noOfTrees"
+                RadioButton { name: "auto"  ; text: qsTr("Auto")   ; checked: true}
+                RadioButton { name: "manual"; text: qsTr("Manual") ; childrenOnSameRow: true
+                    IntegerField { name: "numberOfTrees"; min: 1; max: 999999; defaultValue: 100; fieldWidth: 60 }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Shrinkage")
+                name: "shrinkage"
+                RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    DoubleField { name: "shrinkPar" ; defaultValue: 0.1; min: 0; max: 1; fieldWidth: 60 }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Interaction depth")
+                name: "int.depth"
+                RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    IntegerField { name: "int.depth.parameter"; defaultValue: 1; min: 1; max: 999 }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Min. no. observations in node")
+                name: "nNode"
+                RadioButton { text: qsTr("Auto")        ; name: "auto"  ; checked: true}
+                RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
+                    IntegerField { name: "nNodeSpec"; defaultValue: 10; min: 1; max: 999999 }
+                }
+            }
+
+            RadioButtonGroup
+            {
+                title: qsTr("Data used for training")
+                name: "dataTrain"
+                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    PercentField { name: "percentageDataTraining"; defaultValue: 80 }
+                }
+            }
+
+            RadioButtonGroup
+            {
+                title: qsTr("Training data used per tree")
+                name: "bag.fraction"
+                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    PercentField { name: "bag.fraction.spec"; defaultValue: 50 }
+                }
+            }
+
+            RadioButtonGroup {
+                title: qsTr("Model optimization")
+                name: "modelOptimization"
+                RadioButton { text: qsTr("10-fold cross-validation"); name: "cv"   ; checked: true }
+                RadioButton { text: qsTr("Out-of-bag")              ; name: "oob"                  }
+                RadioButton { text: qsTr("None")                    ; name: "noOpt"                }
+            }
+
+        }
+    }
+
+    ExpanderButton
+    {
+        title: qsTr("Plots")
+
+        Group
+        {
+            CheckBox { name: "plotPredPerformance"; text: qsTr("Predictive performance plot")   }
+            CheckBox { name: "plotRelInf";          text: qsTr("Relative influence plot")       }
+            CheckBox { name: "plotDeviance";        text: qsTr("Deviance plot")                 }
+            CheckBox { name: "plotOOBChangeDev";    text: qsTr("OOB improvement plot")          }
+        }
+    }
+
+    ExpanderButton
+    {
+        title: qsTr("Advanced")
+
+        GridLayout{
+
+            GroupBox
+            {
+
+            title: qsTr("Set seed")
+
+            RadioButtonGroup
+            {
+                name: "seedBox"
+                RadioButton { value: "auto"  ;	text: qsTr("Auto")  ; checked: true           }
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    DoubleField { name: "seed"; defaultValue: 1 }
+                }
+            }
+            }
+
+            GroupBox
+            {
+
+            title: qsTr("Missing values")
+
+            RadioButtonGroup
+            {
+                name: "NAs"
+                RadioButton { value: "na.omit" ; text: qsTr("Omit all rows that contain NAs"); checked: true  }
+                RadioButton { value: "roughfix"; text: qsTr("Apply roughfix to NAs")                          }
+            }
+            }
+
+        }
     }
 }
