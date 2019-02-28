@@ -31,7 +31,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   # Save analysis options in an object so that they don't have to be listed every time
   analysisOptions <- c("target", "predictors", "indicator", "applyModel", "noOfTrees", "numberOfTrees",
-                       "noOfPredictors", "numberOfPredictors", "dataTrainingModel", "percentageDataTraining",
+                       "noOfPredictors", "numberOfPredictors", "dataTrain", "percentageDataTraining",
                        "dataBootstrapModel", "percentageDataBootstrap", "seedBox", "seed", "missingValues")
   
   # Compute (a list of) results from which tables and plots can be created
@@ -139,7 +139,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 
     }
   
-  idxTrain <- sample(1:nrow(modelData), floor(results$spec$dataTrainingModel * nrow(modelData)))
+  idxTrain <- sample(1:nrow(modelData), floor(results$spec$dataTrain * nrow(modelData)))
   idxTest <- (1:nrow(modelData))[-idxTrain]
   
   xTrain <- modelData[idxTrain, preds, drop = FALSE]
@@ -196,17 +196,17 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   }
   
   # What percentage of the data should be used for training?
-  if (options$dataTrainingModel == "manual") {
-    specs$dataTrainingModel <- options$percentageDataTraining
+  if (options$dataTrain == "manual") {
+    specs$dataTrain <- options$percentageDataTraining
   } else {
-    specs$dataTrainingModel <- .8
+    specs$dataTrain <- .8
   }		
   
   # What percentage of the training data should be used for bootstrapping?
   if (options$dataBootstrapModel == "manual") {
     specs$dataBootstrapModel <- options$percentageDataBootstrap
   } else {
-    specs$dataBootstrapModel <- ceiling(.632*nrow(modelData)*specs$dataTrainingModel)
+    specs$dataBootstrapModel <- .5
   }
   
   return(specs)
@@ -221,7 +221,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   jaspResults[["regRanForTable"]]$dependOnOptions(analysisOptions)
   
   # Add column info
-  if(options$dataTrainingModel == "auto" || options$percentageDataTraining < 1){
+  if(options$dataTrain == "auto" || options$percentageDataTraining < 1){
     regRanForTable$addColumnInfo(name = "testMSE",  title = "Test Set MSE", type = "number", format = "sf:4")
   }
   regRanForTable$addColumnInfo(name = "oobMSE",  title = "OOB MSE", type = "number", format = "sf:4")
@@ -347,7 +347,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 .regRanForPlotPredPerformance <- function(jaspResults, options, regRanForResults, ready) {
   if (!options$plotPredPerformance) return()
   regRanForResults$data$yTrain
-  if(regRanForResults$spec$dataTrainingModel == 1){
+  if(regRanForResults$spec$dataTrain == 1){
     predPerformance <- data.frame(true = regRanForResults$data$yTrain, predicted = regRanForResults$res$predicted) 
   } else {
     predPerformance <- data.frame(true = regRanForResults$data$yTest, predicted = regRanForResults$res$test$predicted) 

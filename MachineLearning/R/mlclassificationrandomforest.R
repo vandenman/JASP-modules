@@ -180,7 +180,7 @@ MLClassificationRandomForest <- function(jaspResults, dataset, options, ...) {
   if (options$dataBootstrapModel == "manual") {
     specs$dataBootstrapModel <- options$percentageDataBootstrap
   } else {
-    specs$dataBootstrapModel <- ceiling(.632*nrow(modelData)*specs$dataTrainingModel)
+    specs$dataBootstrapModel <- .5
   }
   
   return(specs)

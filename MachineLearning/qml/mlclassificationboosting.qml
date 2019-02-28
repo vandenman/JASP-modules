@@ -64,8 +64,8 @@ Form
     GroupBox {
         title: qsTr("Tables")
 
-        CheckBox { name: "classBoostConfTable";	    text: qsTr("Confusion Table"); checked: true      }
-        CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative Influence Table")            }
+        CheckBox { name: "classBoostConfTable";	    text: qsTr("Confusion matrix"); checked: true      }
+        CheckBox { name: "classBoostRelInfTable";	text: qsTr("Relative influence")            }
     }
 
     ExpanderButton
@@ -98,7 +98,7 @@ Form
                 name: "int.depth"
                 RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
-                    IntegerField { name: "int.depth.parameter"; defaultValue: 1; min: 1; max: 999 }
+                    IntegerField { name: "int.depth.parameter"; defaultValue: 1; min: 1; max: 99; fieldWidth: 25 }
                 }
             }
 
@@ -134,9 +134,18 @@ Form
             RadioButtonGroup {
                 title: qsTr("Model optimization")
                 name: "modelOptimization"
-                RadioButton { text: qsTr("10-fold cross-validation"); name: "cv"   ; checked: true }
+                RadioButton { name: "cv"; childrenOnSameRow: true
+                    IntegerField {
+                        name: "cvFolds"
+                        afterLabel: qsTr("-fold cross-validation")
+                        defaultValue: 10
+                        min: 2
+                        max: 30
+                        fieldWidth: 25
+                   }
+                }
                 RadioButton { text: qsTr("Out-of-bag")              ; name: "oob"                  }
-                RadioButton { text: qsTr("None")                    ; name: "noOpt"                }
+                RadioButton { text: qsTr("None")                    ; name: "noOpt"; checked: true }
             }
 
         }
@@ -148,9 +157,9 @@ Form
 
         Group
         {
-            CheckBox { name: "plotRelInf";       text: qsTr("Relative influence plot")   }
-            CheckBox { name: "plotDeviance";     text: qsTr("Deviance plot")             }
-            CheckBox { name: "plotOOBChangeDev"; text: qsTr("OOB improvement plot")      }
+            CheckBox { name: "plotRelInf";       text: qsTr("Relative influence")   }
+            CheckBox { name: "plotDeviance";     text: qsTr("Deviance")             }
+            CheckBox { name: "plotOOBChangeDev"; text: qsTr("OOB improvement")      }
         }
     }
 

@@ -97,7 +97,7 @@ Form
                 name: "int.depth"
                 RadioButton { text: qsTr("Auto")    ; name: "auto"  ; checked: true}
                 RadioButton { text: qsTr("Manual")  ; name: "manual"; childrenOnSameRow: true
-                    IntegerField { name: "int.depth.parameter"; defaultValue: 1; min: 1; max: 999 }
+                    IntegerField { name: "int.depth.parameter"; defaultValue: 1; min: 1; max: 99; fieldWidth: 25 }
                 }
             }
 
@@ -133,9 +133,18 @@ Form
             RadioButtonGroup {
                 title: qsTr("Model optimization")
                 name: "modelOptimization"
-                RadioButton { text: qsTr("10-fold cross-validation"); name: "cv"   ; checked: true }
+                RadioButton { name: "cv"; childrenOnSameRow: true
+                    IntegerField {
+                        name: "cvFolds"
+                        afterLabel: qsTr("-fold cross-validation")
+                        defaultValue: 10
+                        min: 2
+                        max: 30
+                        fieldWidth: 25
+                   }
+                }
                 RadioButton { text: qsTr("Out-of-bag")              ; name: "oob"                  }
-                RadioButton { text: qsTr("None")                    ; name: "noOpt"                }
+                RadioButton { text: qsTr("None")                    ; name: "noOpt"; checked: true }
             }
 
         }
@@ -147,10 +156,10 @@ Form
 
         Group
         {
-            CheckBox { name: "plotPredPerformance"; text: qsTr("Predictive performance plot")   }
-            CheckBox { name: "plotRelInf";          text: qsTr("Relative influence plot")       }
-            CheckBox { name: "plotDeviance";        text: qsTr("Deviance plot")                 }
-            CheckBox { name: "plotOOBChangeDev";    text: qsTr("OOB improvement plot")          }
+            CheckBox { name: "plotPredPerformance"; text: qsTr("Predictive performance")   }
+            CheckBox { name: "plotRelInf";          text: qsTr("Relative influence")       }
+            CheckBox { name: "plotDeviance";        text: qsTr("Deviance")                 }
+            CheckBox { name: "plotOOBChangeDev";    text: qsTr("OOB improvement")          }
         }
     }
 
@@ -185,6 +194,20 @@ Form
                 name: "NAs"
                 RadioButton { value: "na.omit" ; text: qsTr("Omit all rows that contain NAs"); checked: true  }
                 RadioButton { value: "roughfix"; text: qsTr("Apply roughfix to NAs")                          }
+            }
+            }
+
+            GroupBox
+            {
+
+            title: qsTr("Distribution")
+
+            RadioButtonGroup
+            {
+                name: "dist"
+                RadioButton { value: "gaussian" ; text: qsTr("Gaussian"); checked: true  }
+                RadioButton { value: "laplace"  ; text: qsTr("Laplace")                  }
+                RadioButton { value: "tdist"    ; text: qsTr("t")                        }
             }
             }
 

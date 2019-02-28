@@ -114,7 +114,7 @@ Form
                     name: "percentageDataBootstrap"
                     doubleValidator { bottom: 0; top: 1; decimals: 2 }
                     text: qsTr("% of training data bootstrapped:")
-                    defaultValue: 0.63
+                    defaultValue: 0.5
                     enabled: dataBootstrapModel.checked
                     indent: true
                 }

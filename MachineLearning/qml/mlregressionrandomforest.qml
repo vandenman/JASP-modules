@@ -109,7 +109,7 @@ Form
                 name: "dataBootstrapModel"
                 RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
                 RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
-                    PercentField { name: "percentageDataBootstrap"; defaultValue: 63 }
+                    PercentField { name: "percentageDataBootstrap"; defaultValue: 50 }
                 }
             }
 
