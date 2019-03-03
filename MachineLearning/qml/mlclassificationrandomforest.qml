@@ -26,29 +26,34 @@ Form
 {
     usesJaspResults: true
 
-    VariablesForm {
-        AssignedVariablesList {
-            name: "target"
-            title: qsTr("Target")
-            singleItem: true
-            allowedColumns: ["nominal", "ordinal"]
-        }
-        AssignedVariablesList {
-                    name: "predictors"
-                    title: qsTr("Predictors")
-                    singleItem: false
-                    allowedColumns: ["nominal", "scale", "ordinal"]
-                }
-        AssignedVariablesList {
-                    name: "indicator"
-                    title: qsTr("Apply indicator (optional)")
-                    singleItem: true
-                    allowedColumns: ["nominal"]
-                }
+    VariablesForm
+    {
+        AvailableVariablesList { name: "allVariablesList" }
+        AssignedVariablesList { name: "target";	title: qsTr("Target"); singleVariable: true; allowedColumns: ["nominal", "ordinal"] }
+        AssignedVariablesList { name: "predictors";	title: qsTr("Predictors") }
+        AssignedVariablesList { name: "indicator";	title: qsTr("Apply indicator (optional)"); singleVariable: true; allowedColumns: ["nominal"] }
     }
 
-    CheckBox { name: "tableVariableImportance";	text: qsTr("Variable Importance Table") }
-    CheckBox { name: "tableClassification";	text: qsTr("Classification Table")          }
+    GroupBox
+    {
+
+    title: qsTr("Model application")
+
+    RadioButtonGroup
+    {
+        name: "applyModel"
+        RadioButton { value: "noApp"         ; text: qsTr("Do not apply model"); checked: true        }
+        RadioButton { value: "applyIndicator"; text: qsTr("Apply model according to indicator")       }
+        RadioButton { value: "applyImpute"   ; text: qsTr("Apply model to missing values in target")  }
+    }
+    }
+
+    GroupBox {
+        title: qsTr("Tables")
+
+        CheckBox { name: "classBoostConfTable";	    text: qsTr("Confusion matrix"); checked: true      }
+        CheckBox { name: "tableVariableImportance";	text: qsTr("Variable importance")            }
+    }
 
     ExpanderButton
     {
@@ -56,69 +61,45 @@ Form
 
         GridLayout
         {
-            RadioButtonGroup
-            {
+
+            RadioButtonGroup {
+                title: qsTr("No. of Trees for Training")
                 name: "noOfTrees"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true		}
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: noOfTrees 	}
-                IntegerField
-                {
-                    name: "numberOfTrees"
-                    text: qsTr("No. of trees:")
-                    defaultValue: 500
-                    fieldWidth: 50
-                    enabled: noOfTrees.checked
-                    indent: true
+                RadioButton { name: "auto"  ; text: qsTr("Auto")   ; checked: true}
+                RadioButton { name: "manual"; text: qsTr("Manual") ; childrenOnSameRow: true
+                    IntegerField { name: "numberOfTrees"; min: 1; max: 999999; defaultValue: 500; fieldWidth: 60 }
                 }
             }
 
-            RadioButtonGroup
-            {
+            RadioButtonGroup {
+                title: qsTr("No. of predictors tried at each split")
                 name: "noOfPredictors"
-                RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: noOfPredictors	}
-                IntegerField
-                {
-                    name: "numberOfPredictors"
-                    text: qsTr("No. of predictors:")
-                    defaultValue: 1
-                    fieldWidth: 50
-                    enabled: noOfPredictors.checked
-                    indent: true
+                RadioButton { name: "auto"  ; text: qsTr("Auto")   ; checked: true}
+                RadioButton { name: "manual"; text: qsTr("Manual") ; childrenOnSameRow: true
+                    IntegerField { name: "numberOfPredictors"; min: 1; max: 999999; defaultValue: 1; fieldWidth: 60 }
                 }
             }
 
             RadioButtonGroup
             {
-                name: "dataTrainingModel"
+                title: qsTr("Data used for training")
+                name: "dataTrain"
                 RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: dataTrainingModel	}
-                DoubleField
-                {
-                    name: "percentageDataTraining"
-                    doubleValidator { bottom: 0; top: 1; decimals: 2 }
-                    text: qsTr("% of data used for training:")
-                    defaultValue: 0.8
-                    enabled: dataTrainingModel.checked
-                    indent: true
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    PercentField { name: "percentageDataTraining"; defaultValue: 80 }
                 }
             }
 
             RadioButtonGroup
             {
+                title: qsTr("Training data bootstrapped per tree")
                 name: "dataBootstrapModel"
                 RadioButton { value: "auto";	text: qsTr("Auto"); checked: true           }
-                RadioButton { value: "manual";	text: qsTr("Manual"); id: dataBootstrapModel	}
-                DoubleField
-                {
-                    name: "percentageDataBootstrap"
-                    doubleValidator { bottom: 0; top: 1; decimals: 2 }
-                    text: qsTr("% of training data bootstrapped:")
-                    defaultValue: 0.5
-                    enabled: dataBootstrapModel.checked
-                    indent: true
+                RadioButton { value: "manual";	text: qsTr("Manual"); childrenOnSameRow: true
+                    PercentField { name: "percentageDataBootstrap"; defaultValue: 50 }
                 }
             }
+
         }
     }
 

@@ -29,21 +29,17 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   # Error checking
   if (ready) errors <- .regRanForErrorHandling(dataset, options)
   
-  # Save analysis options in an object so that they don't have to be listed every time
-  analysisOptions <- c("target", "predictors", "indicator", "applyModel", "noOfTrees", "numberOfTrees",
-                       "noOfPredictors", "numberOfPredictors", "dataTrain", "percentageDataTraining",
-                       "dataBootstrapModel", "percentageDataBootstrap", "seedBox", "seed", "missingValues")
-  
   # Compute (a list of) results from which tables and plots can be created
-  if (ready) regRanForResults <- .regRanForComputeResults(jaspResults, dataset, options, analysisOptions)
+  if (ready) regRanForResults <- .regRanForComputeResults(jaspResults, dataset, options)
   
   # Output tables
-  .regRanForTable(      jaspResults, options, regRanForResults, ready, analysisOptions)
-  .regRanForApplyTable( jaspResults, options, regRanForResults, ready, analysisOptions)
-  .regRanForVarImpTable(jaspResults, options, regRanForResults, ready, analysisOptions)
+  .regRanForTable(      jaspResults, options, regRanForResults, ready)
+  .regRanForApplyTable( jaspResults, options, regRanForResults, ready)
+  .regRanForVarImpTable(jaspResults, options, regRanForResults, ready)
   
   # Output plots
-  if (ready) .regRanForPlotVarImp(           jaspResults, options, regRanForResults)
+  if (ready) .regRanForPlotVarImpAcc(        jaspResults, options, regRanForResults)
+  if (ready) .regRanForPlotVarImpPur(        jaspResults, options, regRanForResults)
   if (ready) .regRanForPlotTreesVsModelError(jaspResults, options, regRanForResults)
   if (ready) .regRanForPlotPredPerformance(  jaspResults, options, regRanForResults)
   
@@ -129,15 +125,15 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if (options$indicator != "") {
     
     indicatorDotV <- .v(indicator)
-
+    
     applyData <- dataset[as.logical(dataset[, indicatorDotV]), preds, drop = FALSE]
     modelData <- dataset[-as.logical(dataset[, indicatorDotV]), -indicator, drop = FALSE]
-
-    } else {
-
-      modelData <- dataset
-
-    }
+    
+  } else {
+    
+    modelData <- dataset
+    
+  }
   
   idxTrain <- sample(1:nrow(modelData), floor(results$spec$dataTrain * nrow(modelData)))
   idxTest <- (1:nrow(modelData))[-idxTrain]
@@ -160,7 +156,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     Variable = .unv(as.factor(names(results$res$importance[,1]))),
     MeanIncrMSE = results$res$importance[, 1],
     TotalDecrNodeImp = results$res$importance[, 2],
-    Stan = apply(results$res$importance, 2, scale)[,1] + apply(results$res$importance, 2, scale)[,2]
+    Stan = apply(results$res$importance, 2, scale)[, 1] + apply(results$res$importance, 2, scale)[,2]
   ), -Stan)
   
   # Applying the model
@@ -172,7 +168,11 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   
   # Save results to state
   jaspResults[["stateregRanForResults"]] <- createJaspState(results)
-  jaspResults[["stateregRanForResults"]]$dependOnOptions(analysisOptions)
+  jaspResults[["stateregRanForResults"]]$dependOnOptions(c("target", "predictors", "indicator", "applyModel",
+                                                           "noOfTrees", "numberOfTrees", "noOfPredictors",
+                                                           "numberOfPredictors", "dataTrain", "percentageDataTraining",
+                                                           "dataBootstrapModel", "percentageDataBootstrap", "seedBox",
+                                                           "seed", "missingValues"))
   
   return(results)
 }
@@ -218,7 +218,10 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   # Create table and bind to jaspResults
   regRanForTable <- createJaspTable(title = "Random Forest Regression Model Summary")
   jaspResults[["regRanForTable"]] <- regRanForTable
-  jaspResults[["regRanForTable"]]$dependOnOptions(analysisOptions)
+  jaspResults[["regRanForTable"]]$dependOnOptions(c("target", "predictors", "indicator", "applyModel", "noOfTrees",
+                                                    "numberOfTrees", "noOfPredictors", "numberOfPredictors",
+                                                    "dataTrain", "percentageDataTraining", "dataBootstrapModel",
+                                                    "percentageDataBootstrap", "seedBox", "seed", "missingValues"))
   
   # Add column info
   if(options$dataTrain == "auto" || options$percentageDataTraining < 1){
@@ -244,7 +247,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   # Create table and bind to jaspResults
   regRanForApplyTable <- createJaspTable(title = "Random Forest Model Predictions")
   jaspResults[["regRanForApplyTable"]] <- regRanForApplyTable
-  jaspResults[["regRanForApplyTable"]]$dependOnOptions(analysisOptions)
+  jaspResults[["regRanForApplyTable"]]$copyDependenciesFromJaspObject(jaspResults[["regRanForTable"]])
+  jaspResults[["regRanForApplyTable"]]$dependOnOptions("applyModel")
   
   # Add column info
   regRanForApplyTable$addColumnInfo(name = "row",  title = "Row", type = "integer")
@@ -257,13 +261,13 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
 }
 
 .regRanForVarImpTable <- function(jaspResults, options, regRanForResults, ready, analysisOptions) {
-  if (!is.null(jaspResults[["regRanForVarImpTable"]])) return()
-  if (!options$regRanForVarImpTable) return()
+  if (!options$regRanForVarImpTable || !is.null(jaspResults[["regRanForVarImpTable"]])) return()
   
   # Create table
   regRanForVarImpTable <- createJaspTable(title = "Variable Importance")
   jaspResults[["regRanForVarImpTable"]] <- regRanForVarImpTable
-  jaspResults[["regRanForVarImpTable"]]$dependOnOptions(c(analysisOptions, "regRanForVarImpTable"))
+  jaspResults[["regRanForVarImpTable"]]$copyDependenciesFromJaspObject(jaspResults[["regRanForTable"]])
+  jaspResults[["regRanForVarImpTable"]]$dependOnOptions("regRanForVarImpTable")
   
   # Add column info
   regRanForVarImpTable$addColumnInfo(name = "predictor",  title = " ", type = "string")
@@ -277,48 +281,46 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   regRanForVarImpTable[["acc"]]       <- if(ready) as.numeric(regRanForResults$varImp$MeanIncrMSE)      else "."
   regRanForVarImpTable[["pur"]]       <- if(ready) as.numeric(regRanForResults$varImp$TotalDecrNodeImp) else "."
   regRanForVarImpTable[["stan"]]      <- if(ready) as.numeric(regRanForResults$varImp$Stan)             else "."
-    
+  
 }
 
-.regRanForPlotVarImp <- function(jaspResults, options, regRanForResults, ready) {
-  if (!options$plotVarImp) return()
+.regRanForPlotVarImpAcc <- function(jaspResults, options, regRanForResults, ready) {
+  if (!options$plotVarImpAcc) return()
   
-  varImpOrder <- sort(regRanForResults$res$importance[,1], decr = FALSE, index.return = TRUE)$ix
-  
-  varImp <- dplyr::tibble(
-    Variable = .unv(as.factor(names(regRanForResults$res$importance[varImpOrder, 1]))),
-    MeanIncrMSE = regRanForResults$res$importance[varImpOrder, 1],
-    TotalDecrNodeImp = regRanForResults$res$importance[varImpOrder, 2]
-  )
-  
-  varImpPlot1 <- JASPgraphs::themeJasp(
-    ggplot2::ggplot(varImp, ggplot2::aes(x = reorder(Variable, MeanIncrMSE), y = MeanIncrMSE)) +
+  regRanForPlotMeanDecrAcc <- JASPgraphs::themeJasp(
+    ggplot2::ggplot(regRanForResults$varImp, ggplot2::aes(x = reorder(Variable, MeanIncrMSE), y = MeanIncrMSE)) +
       ggplot2::geom_bar(stat = "identity", fill = "grey", col = "black", size = .3) +
-      ggplot2::labs(
-        x = "",
-        y = "Mean Decrease in Accuracy"
-      ),
+      ggplot2::labs(x = "", y = "Mean Decrease in Accuracy"),
     horizontal = TRUE
   )
   
-  varImpPlot2 <- JASPgraphs::themeJasp(
-    ggplot2::ggplot(varImp, ggplot2::aes(x = reorder(Variable, TotalDecrNodeImp), y = TotalDecrNodeImp)) +
+  regRanForPlotMeanDecrAcc <- createJaspPlot(plot = regRanForPlotMeanDecrAcc, 
+                                             title = "Mean Decrease in Accuracy per Variable",
+                                             width = 400, height = 20 * nrow(regRanForResults$varImp) + 60)
+  
+  jaspResults[["regRanForPlotMeanDecrAcc"]] <- regRanForPlotMeanDecrAcc
+  jaspResults[["regRanForPlotMeanDecrAcc"]]$copyDependenciesFromJaspObject(jaspResults[["regRanForTable"]])
+  jaspResults[["regRanForPlotMeanDecrAcc"]]$dependOnOptions("plotVarImpAcc")
+}
+
+.regRanForPlotVarImpPur <- function(jaspResults, options, regRanForResults, ready) {
+  if (!options$plotVarImpPur) return()
+  
+  regRanForPlotVarImpPur <- JASPgraphs::themeJasp(
+    ggplot2::ggplot(regRanForResults$varImp,
+                    ggplot2::aes(x = reorder(Variable, TotalDecrNodeImp), y = TotalDecrNodeImp)) +
       ggplot2::geom_bar(stat = "identity", fill = "grey", col = "black", size = .3) +
-      ggplot2::labs(
-        x = "",
-        y = "Total Increase in Node Purity"
-      ),
+      ggplot2::labs(x = "", y = "Total Increase in Node Purity"),
     horizontal = TRUE
   )
   
-  varImpPlot1 <- createJaspPlot(plot = varImpPlot1, title = "Mean Decrease in Accuracy per Variable",
-                                         width = 400, height = 20 * nrow(varImp) + 60)
+  regRanForPlotVarImpPur <- createJaspPlot(plot = regRanForPlotVarImpPur,
+                                           title = "Total Increase in Node Purity per Variable",
+                                           width = 400, height = 20 * nrow(regRanForResults$varImp) + 60)
   
-  varImpPlot2 <- createJaspPlot(plot = varImpPlot2, title = "Total Increase in Node Purity per Variable",
-                                         width = 400, height = 20 * nrow(varImp) + 60)
-  
-  jaspResults[["plotVarImp"]] <- c(varImpPlot1, varImpPlot2)
-  jaspResults[["plotVarImp"]]$dependOnOptions(c(analysisOptions, "plotVarImp"))
+  jaspResults[["regRanForPlotMeanDecrPur"]] <- regRanForPlotVarImpPur
+  jaspResults[["regRanForPlotMeanDecrPur"]]$copyDependenciesFromJaspObject(jaspResults[["regRanForTable"]])
+  jaspResults[["regRanForPlotMeanDecrPur"]]$dependOnOptions("plotVarImpPur")
 }
 
 .regRanForPlotTreesVsModelError <- function(jaspResults, options, regRanForResults, ready) {
@@ -341,6 +343,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
                                           width = 400, height = 400)
   
   jaspResults[["plotTreesVsModelError"]] <- plotTreesVsModelError
+  jaspResults[["plotTreesVsModelError"]]$copyDependenciesFromJaspObject(jaspResults[["regRanForTable"]])
   jaspResults[["plotTreesVsModelError"]]$dependOnOptions("plotTreesVsModelError")
 }
 
@@ -365,8 +368,9 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   )
   
   plotPredPerformance <- createJaspPlot(plot = plotPredPerformance, title = "Predictive Performance",
-                                                 width = 400, height = 400)
+                                        width = 400, height = 400)
   
   jaspResults[["plotPredPerformance"]] <- plotPredPerformance
+  jaspResults[["plotPredPerformance"]]$copyDependenciesFromJaspObject(jaspResults[["regRanForTable"]])
   jaspResults[["plotPredPerformance"]]$dependOnOptions("plotPredPerformance")
 }

@@ -26,26 +26,12 @@ Form
 {
     usesJaspResults: true
 
-    VariablesForm {
-        AssignedVariablesList {
-            name: "target"
-            title: qsTr("Target")
-            singleVariable: true
-            allowedColumns: ["scale"]
-        }
-        AssignedVariablesList {
-                    name: "predictors"
-                    title: qsTr("Predictors")
-                    singleVariable: false
-                    allowedColumns: ["nominal", "scale", "ordinal"]
-                }
-        AssignedVariablesList {
-                    name: "indicator"
-                    title: qsTr("Apply indicator (optional)")
-                    singleVariable: true
-                    allowedColumns: ["nominal"]
-                    id: indicator
-                }
+    VariablesForm
+    {
+        AvailableVariablesList { name: "allVariablesList" }
+        AssignedVariablesList { name: "target";	title: qsTr("Target"); singleVariable: true; allowedColumns: ["scale"] }
+        AssignedVariablesList { name: "predictors";	title: qsTr("Predictors") }
+        AssignedVariablesList { name: "indicator";	title: qsTr("Apply indicator (optional)"); singleVariable: true; allowedColumns: ["nominal"] }
     }
 
     GroupBox
@@ -120,15 +106,13 @@ Form
     {
         title: qsTr("Plots")
 
-        Group
-        {
-            CheckBox { name: "plotVarImp";         text: qsTr("Variable importance plots")
-                CheckBox { name: "plotVarImpAcc";  text: qsTr("Variable importance plots") }
-                CheckBox { name: "plotVarImpPur";  text: qsTr("Variable importance plots") }
-            }
+        Group {
 
-            CheckBox { name: "plotTreesVsModelError";   text: qsTr("Trees vs. model error plot")        					}
-            CheckBox { name: "plotPredPerformance";     text: qsTr("Predictive performance plot")							}
+            CheckBox { name: "plotVarImpAcc";  text: qsTr("Mean decrease in accuracy")               }
+            CheckBox { name: "plotVarImpPur";  text: qsTr("Total decrease in node impurity")         }
+            CheckBox { name: "plotTreesVsModelError";   text: qsTr("Trees vs. model error")          }
+            CheckBox { name: "plotPredPerformance";     text: qsTr("Predictive performance")		 }
+
         }
     }
 

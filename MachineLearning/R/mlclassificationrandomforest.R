@@ -138,6 +138,14 @@ MLClassificationRandomForest <- function(jaspResults, dataset, options, ...) {
   
   results[["data"]] <- list(xTrain = xTrain, yTrain = yTrain, xTest = xTest, yTest = yTest)
   
+  # Making a variable importance table
+  results[["varImp"]] <- plyr::arrange(data.frame(
+    Variable = .unv(as.factor(names(results$res$importance[,1]))),
+    MeanIncrMSE = results$res$importance[, 1],
+    TotalDecrNodeImp = results$res$importance[, 2],
+    Stan = apply(results$res$importance, 2, scale)[, 1] + apply(results$res$importance, 2, scale)[,2]
+  ), -Stan)
+  
   if(options$indicator != "") results[["apply"]] <- predict(results$res, applyData, type = "class")
   
   # Save results to state

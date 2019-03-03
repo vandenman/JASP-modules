@@ -26,25 +26,12 @@ Form
 {
     usesJaspResults: true
 
-    VariablesForm {
-        AssignedVariablesList {
-            name: "target"
-            title: qsTr("Target")
-            singleVariable: true
-            allowedColumns: ["scale"]
-        }
-        AssignedVariablesList {
-                    name: "predictors"
-                    title: qsTr("Predictors")
-                    singleVariable: false
-                    allowedColumns: ["nominal", "scale", "ordinal"]
-                }
-        AssignedVariablesList {
-                    name: "indicator"
-                    title: qsTr("Apply indicator (optional)")
-                    singleVariable: true
-                    allowedColumns: ["nominal"]
-                }
+    VariablesForm
+    {
+        AvailableVariablesList { name: "allVariablesList" }
+        AssignedVariablesList { name: "target";	title: qsTr("Target"); singleVariable: true; allowedColumns: ["scale"] }
+        AssignedVariablesList { name: "predictors";	title: qsTr("Predictors") }
+        AssignedVariablesList { name: "indicator";	title: qsTr("Apply indicator (optional)"); singleVariable: true; allowedColumns: ["nominal"] }
     }
 
     GroupBox
