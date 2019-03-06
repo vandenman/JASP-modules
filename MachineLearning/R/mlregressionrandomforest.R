@@ -149,7 +149,14 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
                                                  sampsize = results$spec$dataBootstrapModel, importance = TRUE,
                                                  keep.forest = TRUE)
   
+  a <- randomForest::randomForest(x = xTrain, y = yTrain, xtest = xTest, ytest = yTest,
+                                      ntree = results$spec$noOfTrees, mtry = results$spec$noOfPredictors,
+                                      sampsize = results$spec$dataBootstrapModel, importance = TRUE,
+                                      keep.forest = TRUE)
+  
   results[["data"]] <- list(xTrain = xTrain, yTrain = yTrain, xTest = xTest, yTest = yTest)
+  
+  results[["importance"]] <- a$importance
   
   # Making a variable importance table
   results[["varImp"]] <- plyr::arrange(data.frame(
@@ -158,6 +165,8 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
     TotalDecrNodeImp = results$res$importance[, 2],
     Stan = apply(results$res$importance, 2, scale)[, 1] + apply(results$res$importance, 2, scale)[,2]
   ), -Stan)
+  
+  print(results)
   
   # Applying the model
   if(options$indicator != "") {
@@ -177,7 +186,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   return(results)
 }
 
-.regRanForCalcSpecs <- function(modelData, options) {
+.regRanForCalcSpecs <- function(dataset, options) {
   specs <- list()
   
   # Setting the number of trees
@@ -206,7 +215,7 @@ MLRegressionRandomForest <- function(jaspResults, dataset, options, ...) {
   if (options$dataBootstrapModel == "manual") {
     specs$dataBootstrapModel <- options$percentageDataBootstrap
   } else {
-    specs$dataBootstrapModel <- .5
+    specs$dataBootstrapModel <- ceiling(.5 * nrow(dataset))
   }
   
   return(specs)

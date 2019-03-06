@@ -159,7 +159,7 @@ MLClassificationRandomForest <- function(jaspResults, dataset, options, ...) {
   return(results)
 }
 
-.classRanForCalcSpecs <- function(modelData, options) {
+.classRanForCalcSpecs <- function(dataset, options) {
   specs <- list()
   
   # Setting the number of trees
@@ -178,7 +178,7 @@ MLClassificationRandomForest <- function(jaspResults, dataset, options, ...) {
   }
   
   # What percentage of the data should be used for training?
-  if (options$dataTrainingModel == "manual") {
+  if (options$dataTrain == "manual") {
     specs$dataTrainingModel <- options$percentageDataTraining
   } else {
     specs$dataTrainingModel <- .8
@@ -188,7 +188,7 @@ MLClassificationRandomForest <- function(jaspResults, dataset, options, ...) {
   if (options$dataBootstrapModel == "manual") {
     specs$dataBootstrapModel <- options$percentageDataBootstrap
   } else {
-    specs$dataBootstrapModel <- .5
+    specs$dataBootstrapModel <- ceiling(.5 * nrow(dataset))
   }
   
   return(specs)

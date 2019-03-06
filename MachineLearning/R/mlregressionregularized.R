@@ -296,6 +296,8 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   }
   
   regRegTable$addColumnInfo(name = "lambda",  title = "λ", type = "number", format = "sf:4")
+  regRegTable$addColumnInfo(name = "nTrain",  title = "n (Train)", type = "integer")
+  regRegTable$addColumnInfo(name = "nTest",  title = "n (Test)", type = "integer")
   
   if (options$lambda == 0) {
     regRegTable$addFootnote("With λ equal to 0, linear regression is performed.", symbol="<i>Note.</i>") 
@@ -319,6 +321,9 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   } else {
     regRegTable[["lambda"]]  <- if (ready) regRegResults$spec$lambda  else "." 
   }
+  
+  regRegTable[["nTrain"]] <- if (ready) nrow(regRegResults$data$trainPreds) else "."
+  regRegTable[["nTest"]]  <- if (ready) nrow(regRegResults$data$testPreds)  else "."
 
 }
 
