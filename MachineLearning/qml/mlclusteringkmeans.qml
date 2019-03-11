@@ -15,6 +15,7 @@
 // License along with this program.  If not, see
 // <http://www.gnu.org/licenses/>.
 //
+
 import QtQuick 2.8
 import QtQuick.Layouts 1.3
 import JASP.Controls 1.0
@@ -24,11 +25,12 @@ Form {
     id: form
 
     VariablesForm {
+        AvailableVariablesList {name: "variables"}
         AssignedVariablesList {
             name: "predictors"
             title: qsTr("Variables")
-            singleItem: false
-            allowedColumns: ["nominal", "ordinal", "scale"]
+            singleVariable: false
+            allowedColumns: ["ordinal", "scale"]
         }
     }
 
@@ -37,7 +39,7 @@ Form {
 
         ColumnLayout {
             RadioButtonGroup {
-                title: qsTr("Clusters")
+                title: qsTr("<b>Clusters</b>")
                 name: "noOfClusters"
 
                 GroupBox {
@@ -48,7 +50,7 @@ Form {
                             name: "clusterSize"
                             inputType: "integer"
                             validator: IntValidator {bottom: 1; top: 9999}
-                            text: "3"
+                            value: "3"
                             enabled: manualType.checked
                         }
                     }
@@ -58,7 +60,7 @@ Form {
                             name: "optimizedFrom"
                             inputType: "integer"
                             validator: IntValidator {bottom: 1; top: 9999}
-                            text: "1"
+                            value: "1"
                             enabled: optimType.checked
                         }
                         Label {  text: qsTr("to") }
@@ -66,7 +68,7 @@ Form {
                             name: "optimizedTo"
                             inputType: "integer"
                             validator: IntValidator {bottom: 1; top: 9999}
-                            text: "10"
+                            value: "10"
                             enabled: optimType.checked
                         }
                     }
@@ -75,23 +77,23 @@ Form {
                         TextField {
                             name: "robustFrom"
                             inputType: "integer"
-                            validator: IntValidator {bottom: 0; top: 9999}
-                            text: "1"
+                            validator: IntValidator {bottom: 1; top: 9999}
+                            value: "1"
                             enabled: robustType.checked
                         }
                         Label {  text: qsTr("to") }
                         TextField {
                             name: "robustTo"
                             inputType: "integer"
-                            validator: IntValidator {bottom: 0; top: 9999}
-                            text: "10"
+                            validator: IntValidator {bottom: 1; top: 9999}
+                            value: "10"
                             enabled: robustType.checked
                         }
                     }
                     ComboBox {
                         enabled: robustType.checked
                         Layout.leftMargin: 20
-                        label.text: qsTr("Criterion")
+                        label: qsTr("Criterion")
                         name: "criterion"
                         model: ListModel {
                             ListElement { key: "Silhouette Length"          ; value: "silhoutteLength" }
@@ -106,16 +108,18 @@ Form {
         ColumnLayout {
 
             GroupBox {
-                title: qsTr("Tables")
+                title: qsTr("<b>Tables</b>")
                 CheckBox { text: qsTr("Cluster information") ; name: "tableClusterInformation" ; enabled: true ; id: clusterInfo }
-                GridLayout {
-                    columns: 2
+                Flow {
+                    spacing: 5
                     ColumnLayout {
+                        spacing: 5
                         CheckBox { text: qsTr("Size") ; name: "tableClusterInfoSize" ; checked: true; Layout.leftMargin: 20; enabled: clusterInfo.checked}
                         CheckBox { text: qsTr("Centroids") ; name: "tableClusterInfoCentroids" ; checked: false; Layout.leftMargin: 20; enabled: clusterInfo.checked}
                     }
 
                     ColumnLayout {
+                        spacing: 5
                         CheckBox { text: qsTr("Within sum of squares") ; name: "tableClusterInfoSumSquares" ; checked: false; Layout.leftMargin: 20; enabled: clusterInfo.checked}
                         CheckBox { text: qsTr("Between sum of squares") ; name: "tableClusterInfoBetweenSumSquares" ; checked: false; Layout.leftMargin: 20; enabled: clusterInfo.checked}
                         CheckBox { text: qsTr("Total sum of squares") ; name: "tableClusterInfoTotalSumSquares" ; checked: false; Layout.leftMargin: 20; enabled: clusterInfo.checked}
@@ -129,7 +133,7 @@ Form {
                         name: "predictionsFrom"
                         inputType: "integer"
                         validator: IntValidator {bottom: 1; top: 9999}
-                        text: "1"
+                        value: "1"
                         enabled: predictions.checked
                     }
                     Label {  text: qsTr("to") }
@@ -137,38 +141,33 @@ Form {
                         name: "predictionsTo"
                         inputType: "integer"
                         validator: IntValidator {bottom: 1; top: 9999}
-                        text: "10"
+                        value: "10"
                         enabled: predictions.checked
                     }
                 }
-
             }
 
             GroupBox {
-                title: qsTr("Plots")
+                title: qsTr("<b>Plots</b>")
                 CheckBox { text: qsTr("2-D cluster plot") ; name: "plot2dCluster" ; checked: false; enabled: true}
                 CheckBox { text: qsTr("Within sum of squares") ; name: "plotPCAClusterSquares" ; checked: false; enabled: optimType.checked}
                 CheckBox { text: qsTr("Criterion plot") ; name: "plotCriterionVsClusters" ; checked: false; enabled: robustType.checked}
-
-
             }
-
         }
-
     }
 
     ExpanderButton {
         text: qsTr("Advanced options")
 
-        GridLayout {
-            columns: 4
+        Flow {
+            spacing: 20
 
             TextField {
-                label.text: qsTr("Seed")
+                label: qsTr("Seed")
                 name: "seed"
                 inputType: "integer"
-                validator: IntValidator {bottom: 0; top: 9999}
-                text: "1"
+                validator: IntValidator {bottom: 1; top: 9999}
+                value: "1"
             }
 
             RadioButtonGroup {
@@ -190,8 +189,8 @@ Form {
                     TextField {
                         name: "iterationsCount"
                         inputType: "integer"
-                        validator: IntValidator {bottom: 0; top: 9999}
-                        text: "25"
+                        validator: IntValidator {bottom: 1; top: 9999}
+                        value: "25"
                         enabled: iterManual.checked
                     }
                 }
@@ -207,15 +206,12 @@ Form {
                     TextField {
                         name: "randomSetCount"
                         inputType: "integer"
-                        validator: IntValidator {bottom: 0; top: 9999}
-                        text: "25"
+                        validator: IntValidator {bottom: 1; top: 9999}
+                        value: "25"
                         enabled: setsManual.checked
                     }
                 }
             }
-
         }
-
     }
-
 }

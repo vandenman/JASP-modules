@@ -24,6 +24,7 @@ Form {
     id: form
 
     VariablesForm {
+        AvailableVariablesList { name: "variables" }
         AssignedVariablesList {
             name: "target"
             title: qsTr("Target")
@@ -49,7 +50,7 @@ Form {
 
         ColumnLayout {
             RadioButtonGroup {
-                title: qsTr("Nearest Neighbors")
+                title: qsTr("<b>Nearest Neighbors</b>")
                 name: "noOfNearestNeighbours"
 
                 GroupBox {
@@ -59,7 +60,7 @@ Form {
                         TextField {
                             inputType: "integer"
                             name: "nearestNeighboursCount"
-                            text: "2"
+                            value: "2"
                             validator: IntValidator {bottom: 1; top: 999}
                             enabled: manualType.checked
                         }
@@ -70,7 +71,7 @@ Form {
                             name: "optimizedFrom"
                             inputType: "integer"
                             validator: IntValidator {bottom: 1; top: 9999}
-                            text: "1"
+                            value: "1"
                             enabled: optimType.checked
                         }
                         Label {  text: qsTr("to") }
@@ -78,7 +79,7 @@ Form {
                             name: "optimizedTo"
                             inputType: "integer"
                             validator: IntValidator {bottom: 1; top: 9999}
-                            text: "10"
+                            value: "10"
                             enabled: optimType.checked
                         }
                     }
@@ -86,7 +87,7 @@ Form {
             }
 
             GroupBox {
-                title: qsTr("Weights")
+                title: qsTr("<b>Weights</b>")
                 ComboBox {
                     name: "weights"
                     model: ListModel {
@@ -104,7 +105,7 @@ Form {
             }
 
             RadioButtonGroup {
-                title: qsTr("Training data")
+                title: qsTr("<b>Training data</b>")
                 name: "percentageTrainingData"
                 RadioButton { text: qsTr("Auto")                        ; name: "auto" ; checked: true}
                 RowLayout {
@@ -118,7 +119,7 @@ Form {
             }
 
             GroupBox {
-                title: qsTr("Cross validation")
+                title: qsTr("<b>Cross validation</b>")
                 CheckBox { text: qsTr("Leave-one-out") ; name: "validationLeaveOneOut"}
                 CheckBox { text: qsTr("K-fold") ; name: "validationKFold"; id: kfold}
                 RowLayout {
@@ -127,7 +128,7 @@ Form {
                         name: "noOfFolds"
                         inputType: "integer"
                         validator: IntValidator {bottom: 1; top: 9999}
-                        text: "4"
+                        value: "4"
                         enabled: kfold.checked
                     }
                 }
@@ -138,103 +139,78 @@ Form {
         ColumnLayout {
 
             GroupBox {
-                title: qsTr("Tables")
+                title: qsTr("<b>Tables</b>")
                 RowLayout {
                     Label {  text: qsTr("From"); Layout.leftMargin: 20 }
                     TextField {
                         name: "predictionsFrom"
                         inputType: "integer"
                         validator: IntValidator {bottom: 1; top: 9999}
-                        text: "1"
+                        value: "1"
                     }
                     Label {  text: qsTr("to") }
                     TextField {
                         name: "predictionsTo"
                         inputType: "integer"
                         validator: IntValidator {bottom: 1; top: 9999}
-                        text: "10"
+                        value: "10"
                     }
                 }
                 CheckBox { text: qsTr("Predictions") ; name: "tablePredictions" ; checked: false; id: tablePredictions}
-                CheckBox { text: qsTr("Confidence") ; name: "tablePredictionsConfidence" ; checked: false; Layout.leftMargin: 20; enabled: tablePredictions.checked}
                 CheckBox { text: qsTr("Distances") ; name: "tableDistances"}
                 CheckBox { text: qsTr("Weights") ; name: "tableWeights"}
                 CheckBox { text: qsTr("Confusion table") ; name: "confusionTable"; checked: true}
             }
 
             GroupBox {
-                title: qsTr("Plots")
+                title: qsTr("<b>Plots</b>")
                 CheckBox { text: qsTr("Accuracy") ; name: "plotErrorVsK"; enabled: optimType.checked }
             }
         }
     }
 
     ExpanderButton {
-        text: qsTr("Predictions for new data")
-        CheckBox { text: qsTr("Frequencies") ; name: "newDataFrequencies"}
-        CheckBox { text: qsTr("Predictions") ; name: "newDataPredictions"}
-    }
-
-    ExpanderButton {
         text: qsTr("Advanced options")
 
-        GridLayout {
-            columns: 3
+        Flow {
+            spacing: 20
 
-            ColumnLayout {
-                RadioButtonGroup {
-                    title: qsTr("NA action")
-                    name: "naAction"
-                    RadioButton { text: qsTr("Delete Listwise")           ; name: "deleteListwise" }
-                    RadioButton { text: qsTr("Predict")                   ; name: "predict" }
+            TextField {
+                label: qsTr("Seed")
+                name: "seed"
+                inputType: "integer"
+                validator: IntValidator {bottom: 0; top: 9999}
+                value: "1"
+            }
 
-                }
+            GroupBox {
+                title: qsTr("<b>Scale</b>")
+                CheckBox { text: qsTr("Equal sd") ; name: "scaleEqualSD"}
+            }
 
-                DoubleField { label: qsTr("Seed"); name: "seed"; defaultValue: 1 }
+            RadioButtonGroup {
+                title: qsTr("<b>NA action</b>")
+                name: "naAction"
+                RadioButton { text: qsTr("Delete Listwise")           ; name: "deleteListwise" }
+                RadioButton { text: qsTr("Predict")                   ; name: "predict" }
 
             }
 
-            ColumnLayout {
-                RadioButtonGroup {
-                    title: qsTr("Distance parameter")
-                    name: "distanceParameter"
-                    RadioButton { text: qsTr("Auto")           ; name: "auto" }
-                    RowLayout {
-                        RadioButton { text: qsTr("Manual")         ; name: "manual" ; id: distmanual}
-                        TextField {
-                            name: "distanceParameterManual"
-                            inputType: "integer"
-                            validator: IntValidator {bottom: 1; top: 2}
-                            text: "1"
-                            enabled: distmanual.checked
-                        }
-                    }
-                }
-
-                GroupBox {
-                    title: qsTr("Scale")
-                    CheckBox { text: qsTr("Equal sd") ; name: "scaleEqualSD"}
-                }
-            }
-
-            ColumnLayout {
-                GroupBox {
-                    title: qsTr("Model Optimization")
-                    CheckBox { text: qsTr("Optimize model") ; name: "optimizeModel"; id: optimModel}
-                    RowLayout {
-                        Label {  text: qsTr("Max. K"); Layout.leftMargin: 20 }
-                        TextField {
-                            name: "optimizeModelMaxK"
-                            inputType: "integer"
-                            validator: IntValidator {bottom: 1; top: 999}
-                            text: "10"
-                            enabled: optimModel.checked
-                        }
+            RadioButtonGroup {
+                title: qsTr("<b>Distance parameter</b>")
+                name: "distanceParameter"
+                RadioButton { text: qsTr("Auto")           ; name: "auto" }
+                RowLayout {
+                    RadioButton { text: qsTr("Manual")         ; name: "manual" ; id: distmanual}
+                    TextField {
+                        name: "distanceParameterManual"
+                        inputType: "integer"
+                        validator: IntValidator {bottom: 1; top: 2}
+                        value: "1"
+                        enabled: distmanual.checked
                     }
                 }
             }
         }
-
     }
-
 }

@@ -15,93 +15,37 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-
 MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
 
-    # TODO: Overtitle in confusion table
-    # TODO: Make plot work
-    # TODO: Work out accuracy loocv and kfold
-    # TODO: Make confidence estimates work
-    # TODO: Optimzation plot
-
     # read variables ##
-    dataset                      <- .readDataMlKNNclassification(dataset, options)
+    dataset              <- .readDataMlKNNclassification(dataset, options)
     # error handling ##
     .mlKnnClassificationErrorHandling(dataset, options)
-    # Null state ##
-    if(is.null(state))
-      state 							       <- list()
     # set the seed so that every time the same set is chosen (to prevent random results) ##
     set.seed(1)
-    jaspResults$title 					 <- 'K-Nearest Neighbors Classification'
+    jaspResults$title 	<- 'K-Nearest Neighbors Classification'
     # Set the right options for the analysis ##
-    opt                          <- .setOptionsClassification(dataset, options)
-    formula                      <- .makeformulaClassification(options)
+    ready <- length(options[["predictors"]][options[["predictors"]] != ""] > 0) && options[["target"]] != ""
+
+    if(!ready){
+      .evaluationTableClassification(dataset, options, opt, res = NULL, jaspResults)
+    } else {
+    opt                 <- .setOptionsClassification(dataset, options)
     # Run the analysis
-    res <- .doKNNClassification(dataset, options, opt, formula, jaspResults)
-    res                         <- jaspResults[["res"]]$object
-    # create the evaluation table ##
-    .evaluationTableClassification(dataset, options, opt, formula, res, jaspResults)
-    # create the optimization table ##
-    if (options[['optimizeModel']])
-      {
-        if(is.null(jaspResults[["optimizationTable"]]))
-          .optimizationTable(dataset, options, res, formula, jaspResults)
-      }
-    # Create the confusion table ##
-    if (options[['confusionTable']])
-    	{
-    		if(is.null(jaspResults[["confusionTable"]]))
-    			.confusionTableClassifiaction(dataset, options, res, jaspResults)
-    	}
-    # # Create the predictions table ##
-    if (options[['tablePredictions']])
-      {
-        if(is.null(jaspResults[["predictionsTable"]]))
-          .predictionsTableClassification(options, opt, res, jaspResults)
-      }
-    # Create the distances table ##
-    if (options[['tableDistances']])
-      {
-        if(is.null(jaspResults[["distancesTable"]]))
-          .distancesTableClassification(options, opt, res, jaspResults)
-      }
+    res                 <- .doKNNClassification(dataset, options, opt, jaspResults)
+    # create the evaluation table
+    .evaluationTableClassification(dataset, options, opt, res, jaspResults)
+    # Create the confusion table
+    .confusionTableClassification(dataset, options, res, jaspResults)
+    # Create the predictions table
+    .predictionsTableClassification(options, opt, res, jaspResults)
+    # Create the distances table
+    .distancesTableClassification(options, opt, res, jaspResults)
     # Create the weights table ##
-    if(options[['tableWeights']])
-    {
-      if(is.null(jaspResults[["weightsTable"]]))
-        .weightsTableClassification(options, opt, res, jaspResults)
-    }
+    .weightsTableClassification(options, opt, res, jaspResults)
     # Create the Error vs K plot ##
-    if(options[['plotErrorVsK']] && !is.null(res))
-    {
-       if(is.null(jaspResults[["plotErrorVsK"]]))
-       {
-       jaspResults[["plotErrorVsK"]] 		<- .plotErrorVsKClassification(dataset, options, opt, formula, res, jaspResults)
-       jaspResults[["plotErrorVsK"]]		$copyDependenciesFromJaspObject(res)
-       jaspResults[["plotErrorVsK"]] 		$position <- 3
-       }
-    }
-    # # create the optimization plot ##
-    # if(options[["optimizeModel"]] && !is.null(res)){
-    #         .plotFunc <- function(){
-    #             .plotOptimization(formula,dataset,options)
-    #         }
-    #         imgObj <- .writeImage(width = options$plotWidth,
-    #                               height = options$plotHeight,
-    #                               plot = .plotFunc)
-    #
-    #         plot <- list()
-    #
-    #         plot[["title"]] <- "Optimization plot"
-    #         plot[["data"]] <- imgObj[["png"]]
-    #         plot[["obj"]] <- imgObj[["obj"]]
-    #         plot[["convertible"]] <- TRUE
-    #         plot[["status"]] <- "complete"
-    #
-    #         results[["optimizationPlot"]] <- plot
-    #         state[["optimizationPlot"]] <- results[["optimizationPlot"]]
-    #     }
+    .ErrorVsKplot(options, res, jaspResults)
+  }
 }
 
 .readDataMlKNNclassification <- function(dataset, options){
@@ -124,25 +68,28 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
   if(!(options[["target"]] == ""))
     target                  <- options[["target"]]
   variables.to.read         <- c(predictors, target)
-  for(i in 1:length(variables.to.read)){
-      errors <- .hasErrors(dataset, perform, type = c('infinity', 'observations'),
-                           all.target = variables.to.read[i],
-                           observations.amount = "< 2",
-                           exitAnalysisIfErrors = TRUE)
-
-  }
+  errors <- .hasErrors(dataset, perform, type = c('infinity', 'observations'),
+                       all.target = variables.to.read,
+                       observations.amount = "< 2",
+                       exitAnalysisIfErrors = TRUE)
 }
 
 .setOptionsClassification <- function(dataset, options){
     opt <- list()
     # set K
-    ifelse(test = options[['noOfNearestNeighbours']] == 'auto' & nrow(dataset) <= 1000,
-           yes = opt[['NN']] <- 1,
-           no = ifelse(test = options[['noOfNearestNeighbours']] == 'auto' & nrow(dataset) < 20000,
-                       yes = opt[['NN']] <- 2*round(((nrow(dataset)*0.001)+1)/2)-1,
-                       no = ifelse(test = options[['noOfNearestNeighbours']] == 'auto' & nrow(dataset) > 21000,
-                                   yes = opt[['NN']] <- 21,
-                                   no = opt[['NN']] <- 0)))
+    if(options[['noOfNearestNeighbours']] == 'auto' && nrow(dataset) <= 1000){
+      opt[['NN']] <- 1
+    } else {
+      if(options[['noOfNearestNeighbours']] == 'auto' && nrow(dataset) < 20000){
+         opt[['NN']] <- 2 * round(((nrow(dataset)*0.001)+1)/2)-1
+      } else {
+        if(options[['noOfNearestNeighbours']] == 'auto' && nrow(dataset) > 21000){
+          opt[['NN']] <- 21
+        } else {
+          opt[['NN']] <- 1
+        }
+      }
+    }
     if (options[['noOfNearestNeighbours']] == 'manual'){
         opt[['NN']] <- options[['nearestNeighboursCount']]
     } else if (options[['noOfNearestNeighbours']] == 'optimized'){
@@ -187,12 +134,14 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
     return(formula)
 }
 
-.doKNNClassification <- function(dataset, options, opt, formula, jaspResults){
+.doKNNClassification <- function(dataset, options, opt, jaspResults){
+
+  formula                 <- .makeformulaClassification(options)
 
   dataset                 <- na.omit(dataset)
   train.index             <- sample(c(TRUE,FALSE),nrow(dataset),replace = TRUE,prob = c(opt[['ntrain']]*0.01,1-(opt[['ntrain']]*0.01)))
-  train                   <- dataset[which(train.index == TRUE), ]
-  test                    <- dataset[which(train.index == FALSE), ]
+  train                   <- dataset[train.index, ]
+  test                    <- dataset[!train.index, ]
   target                  <- .v(options[["target"]])
 
   ready                   <- ( options[["target"]] != "" && length(options[["predictors"]]) > 0 && !("" %in% options[["predictors"]]) )
@@ -207,12 +156,15 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
     res                   <- NULL
   }
 
+  res[["formula"]] <- formula
+
   jaspResults[["res"]] <- createJaspState(res)
   jaspResults[["res"]]$dependOnOptions(c("noOfNearestNeighbours", "nearestNeighboursCount", "percentageTrainingData",
                                           "trainingDataManual", "distanceParameter", "distanceParameterManual", "weights",
                                           "optimizedFrom", "optimizedTo", "naAction", "scaleEqualSD", "validationLeaveOneOut",
-                                          "validationKFold", "target", "predictors"))
+                                          "validationKFold", "target", "predictors", "seed"))
 
+  return(jaspResults[["res"]]$object)
 }
 
 .oneKClassification <- function(dataset, options, opt, train, test, train.index, formula, target){
@@ -239,7 +191,6 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
             'Prediction' = as.character(knn.fit$fitted.values))
         res[['confusion.table']] <- table('Pred'=knn.fit$fitted.values,'Real'=test[,target])
     }
-    #res[['confidence']] <- as.matrix(knn.fit$prob)
     res[['model.error']]    <- 1 - sum(diag(prop.table(res[['confusion.table']])))
     res[['Optimal.K']]      <- opt[['NN']]
     res[['Weights']]        <- as.matrix(knn.fit$W)
@@ -291,7 +242,6 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
             'Prediction' = knn.fit$fitted.values)
         res[['confusion.table']] <- table('Pred'=knn.fit$fitted.values,'Real'=test[,target])
     }
-    res[['confidence']] <- knn.fit$prob
     res[['Model.error']] <- error
     res[['Minimal.error']] <- min(error)
     res[['Optimal.K']] <- opt[['NN']][which.min(error)]
@@ -301,7 +251,7 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
     return(res)
 }
 
-.evaluationTableClassification <- function(dataset, options, opt, formula, res, jaspResults){
+.evaluationTableClassification <- function(dataset, options, opt, res, jaspResults){
 
   if(!is.null(jaspResults[["evaluationTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
 
@@ -329,12 +279,12 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
           evaluationTable$addRows(row)
       }
       if(options[['validationLeaveOneOut']] & !is.null(res)){
-          result <- .looCvClassification(dataset, options, opt, formula)
-          row <- list(model = "Leave-One-Out cross validaded model", nn = result[['Optimal.K']], rmse = 1 - sqrt(result[['minimal.error']]))
+          result <- .looCvClassification(dataset, options, opt, res[["formula"]], res)
+          row <- list(model = "Leave-One-Out cross validated model", nn = result[['Optimal.K']], rmse = 1 - result[['minimal.error']])
           evaluationTable$addRows(row)
       }
       if(options[['validationKFold']] & !is.null(res)){
-          result_fold <- .kFoldClassification(dataset, options, opt, formula, res)
+          result_fold <- .kFoldClassification(dataset, options, opt, res[["formula"]], res)
           row <- list(model = "K-fold cross validated model", nn = result_fold[['Optimal.K']], rmse = 1 - result_fold[['minimal.error']])
           evaluationTable$addRows(row)
       }
@@ -348,9 +298,12 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
   }
 }
 
-.confusionTableClassifiaction <- function(dataset, options, res, jaspResults){
+.confusionTableClassification <- function(dataset, options, res, jaspResults){
 
   if(!is.null(jaspResults[["confusionTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
+
+  if (options[['confusionTable']]){
+      if(is.null(jaspResults[["confusionTable"]])){
 
   confusionTable                       <- createJaspTable("Confusion table")
   jaspResults[["confusionTable"]]      <- confusionTable
@@ -367,7 +320,7 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
     confusionTable$addColumnInfo(name = "pred_name", title = "", type = "string")
     confusionTable$addColumnInfo(name = "varname_pred", title = "", type = "string")
     for( i in 1:length(rownames(res[["confusion.table"]]))){
-        confusionTable$addColumnInfo(name = paste("varname_real",i, sep = ""), title = as.character(rownames(res[["confusion.table"]])[i]), type = "integer")
+        confusionTable$addColumnInfo(name = paste("varname_real",i, sep = ""), title = as.character(rownames(res[["confusion.table"]])[i]), type = "integer", overtitle = "Observed")
     }
 
     for( i in 1:length(rownames(res[["confusion.table"]]))){
@@ -416,48 +369,22 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
     confusionTable$addRows(row)
 
     }
-}
-
-.optimizationTable <- function(dataset, options, res, formula, jaspResults){
-
-  if(!is.null(jaspResults[["optimizationTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
-
-  optimizationTable                       <- createJaspTable("Model optimization")
-  jaspResults[["optimizationTable"]]      <- optimizationTable
-  optimizationTable$dependOnOptions(c("optimizeModel", "optimizeModelMaxK"))
-  optimizationTable$position <- 2
-  target <- .v(options[["target"]])
-  title_observed <- "Observed"
-
-  optimizationTable$addColumnInfo(name = "model", title = "", type = "string")
-  optimizationTable$addColumnInfo(name = "RMSE", title = "Accuracy", type = "number", format = "sf:4;dp:3")
-  optimizationTable$addColumnInfo(name = "k", title = "No. nearest neighbors", type = "integer")
-  optimizationTable$addColumnInfo(name = "weights", title = "Weights", type = "string")
-  optimizationTable$addColumnInfo(name = "distance", title = "Distance parameter", type = "number", format = "dp:1")
-
-  if(!is.null(res)){
-    result <- .optimizerKNN(dataset, formula, kmax = options[["optimizeModelMaxK"]], distance_from = 0.1, distance_to = 10)
-    row <- list(model = "Optimal parameters", RMSE = 1-result[["MinStatistic"]], k = result[["OptK"]], weights = result[["OptWeights"]], distance = result[["OptDistance"]])
-  } else {
-    row <- list(model = "Optimal parameters", RMSE = ".", k = ".", weights = ".", distance = ".")
+    }
   }
-  optimizationTable$addRows(row)
 }
 
-.plotErrorVsKClassification <- function(dataset, options, opt, formula, res, jaspResults){
+.plotErrorVsKClassification <- function(options, res, jaspResults){
 
   if( !(options[["noOfNearestNeighbours"]] == "optimized"))
     return(createJaspPlot(error="badData", errorMessage="Plotting is not possible: No optimization has been selected."))
   if(is.null(res))
     return(createJaspPlot(error="badData", errorMessage="Plotting is not possible: No analysis has been run."))
 
-    if(options[['noOfNearestNeighbours']] == 'optimized'){
-      p <- .plotKoptimizedClassification(opt[['NN']], 1- res[['Model.error']], type = "optimized")
-    }
-    return(createJaspPlot(plot = p, title = "Error vs. K"))
+    p <- .plotKoptimizedClassification(res[['range']], 1- res[['Model.error']], type = "optimized")
+    return(createJaspPlot(plot = p, title = "Error vs. K", height = 300, width = 400))
 }
 
-.plotKoptimizedClassification <- function(xVar, yVar, type){
+.plotKoptimizedClassification <- function(xVar, yVar, type, title = "Accuracy"){
 
   isNumericX <- !(is.factor(xVar) || (is.integer(xVar) && length(unique(xVar)) <= 10))
   isNumericY <- !(is.factor(yVar) || (is.integer(yVar) && length(unique(yVar)) <= 10))
@@ -469,10 +396,7 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
   if (!isNumericY)
     d$y <- as.factor(d$y)
 
-  if(type == "optimized")
-    y.title <- "Accuracy"
-  if(type == "crossvalidated")
-    y.title = "Model error"
+  y.title <- title
 
   xBreaks <- JASPgraphs::getPrettyAxisBreaks(d$x)
   yBreaks <- JASPgraphs::getPrettyAxisBreaks(d$y)
@@ -499,6 +423,9 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
 
   if(!is.null(jaspResults[["predictionsTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
 
+  if (options[['tablePredictions']]){
+      if(is.null(jaspResults[["predictionsTable"]])){
+
   predictionsTable                       <- createJaspTable("Predictions Table")
   jaspResults[["predictionsTable"]]      <- predictionsTable
   predictionsTable$dependOnOptions(c("noOfNearestNeighbours", "nearestNeighboursCount", "percentageTrainingData",
@@ -515,38 +442,28 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
   predictionsTable$addColumnInfo(name="number", title="Obs. number", type="integer")
   predictionsTable$addColumnInfo(name="real", title="Observed", type="string")
   predictionsTable$addColumnInfo(name='predicted',title = 'Predicted', type = 'string')
-  if(options[['tablePredictionsConfidence']])
-      predictionsTable$addColumnInfo(name ='confidence',title = 'Confidence', type = 'number', format = 'dp:2')
 
-  if(is.null(res) & !options[['tablePredictionsConfidence']]){
+  if(is.null(res)){
         row <- list(number = ".", real = ".", predicted = ".")
         predictionsTable$addRows(row)
-    } else if (is.null(res) & options[["tablePredictionsConfidence"]]) {
-        row <- list(number = ".", real = ".", predicted = ".", confidence = ".")
-        predictionsTable$addRows(row)
-    } else {
-        if(options[['tablePredictionsConfidence']]){
-            for(i in from:to){
-                row <- list(number = as.numeric(res[['predictions']][i,1]),
-                            real = as.character(res[['predictions']][i,2]),
-                            predicted = as.character(res[['predictions']][i,3]),
-                            confidence = as.numeric(max(res[["confidence"]][i,])))
-                predictionsTable$addRows(row)
-            }
-        } else {
-            for(i in from:to){
-                row <- list(number = as.numeric(res[['predictions']][i,1]),
-                            real = as.character(res[['predictions']][i,2]),
-                           predicted = as.character(res[['predictions']][i,3]))
-                predictionsTable$addRows(row)
-            }
+    }  else {
+        for(i in from:to){
+            row <- list(number = as.numeric(res[['predictions']][i,1]),
+                        real = as.character(res[['predictions']][i,2]),
+                       predicted = as.character(res[['predictions']][i,3]))
+            predictionsTable$addRows(row)
         }
     }
+  }
+  }
 }
 
 .distancesTableClassification <- function(options, opt, res, jaspResults){
 
   if(!is.null(jaspResults[["distancesTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
+
+  if (options[['tableDistances']]){
+      if(is.null(jaspResults[["distancesTable"]])){
 
   distancesTable                       <- createJaspTable("Distances Table")
   jaspResults[["distancesTable"]]      <- distancesTable
@@ -589,11 +506,17 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
       message <-'Distances shown are the Euclidian distances'
     distancesTable$addFootnote(message, symbol="<i>Note.</i>")
 
+  }
+}
+
 }
 
 .weightsTableClassification <- function(options, opt, res, jaspResults){
 
   if(!is.null(jaspResults[["weightsTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
+
+  if(options[['tableWeights']]){
+    if(is.null(jaspResults[["weightsTable"]])){
 
   weightsTable                       <- createJaspTable("Weights Table")
   jaspResults[["weightsTable"]]      <- weightsTable
@@ -632,37 +555,25 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
 
   message <- paste0('Weights are calculated using the ', opt[['weights']], ' weighting scheme.')
   weightsTable$addFootnote(message, symbol="<i>Note.</i>")
+    }
+  }
 }
 
-.looCvClassification <- function(dataset, options, opt, formula){
-
-  if(options[["noOfNearestNeighbours"]] =="auto" || options[["noOfNearestNeighbours"]] == "manual"){
-    ks <- opt[["NN"]]
-  } else {
-    ks <- options[["optimizedFrom"]]:options[["optimizedTo"]]
-  }
+.looCvClassification <- function(dataset, options, opt, formula, res){
 
     knn.fit <- kknn::train.kknn(formula = formula,
                                 data = dataset,
-                                ks = ks,
+                                ks = res[["Optimal.K"]],
                                 distance = opt[['distance']],
                                 kernel = opt[['weights']],
                                 na.action = opt[['NA']],
                                 scale = options[["scaleEqualSD"]])
 
-    if(options[["noOfNearestNeighbours"]] =="auto" || options[["noOfNearestNeighbours"]] == "manual"){
-      res <- list()
-      res[['error']] <- as.numeric(knn.fit$MEAN.ABS)
-      res[['Optimal.K']] <- knn.fit$best.parameters$k
-      res[['optimal.weights']] <- knn.fit$best.parameters$kernel
-      res[["minimal.error"]] <- min(res[["error"]])
-    } else {
-      res <- list()
-      res[['error']] <- as.numeric(knn.fit$MEAN.ABS)
-      res[['Optimal.K']] <- knn.fit$best.parameters$k
-      res[['optimal.weights']] <- knn.fit$best.parameters$kernel
-      res[["minimal.error"]] <- min(res[["error"]])
-    }
+    res <- list()
+    res[['error']] <- as.numeric(knn.fit$MISCLASS)
+    res[['Optimal.K']] <- knn.fit$best.parameters$k
+    res[['optimal.weights']] <- knn.fit$best.parameters$kernel
+    res[["minimal.error"]] <- min(res[["error"]])
 
     return(res)
 }
@@ -684,68 +595,14 @@ MLClassificationKNN <- function(jaspResults, dataset, options, state=NULL) {
     return(result)
 }
 
-.optimizerKNN <- function(dataset, formula, kmax, distance_from, distance_to){
-    dist <- seq(distance_from,distance_to,by = 0.1)
-    # make empty vector to save which distance parameters are used
-    d <- numeric()
-    # make empty vector to save which values are created
-    value <- numeric()
-    # same for k
-    k<-numeric()
-    # and kernel
-    kernel <- numeric()
-    for(i in 1:length(dist)){
-        d <- dist[i]
-        kfit <- kknn::train.kknn(formula,dataset,kmax,distance = d)
-        if(kfit$response == "continuous"){
-            value[i] <- min(sqrt(kfit$MEAN.SQU))
-        } else {
-            value[i] <- min(kfit$MISCLASS)
-        }
-        k[i] <- kfit$best.parameters$k
-        kernel[i] <- kfit$best.parameters$kernel
-    }
-    if(kfit$response=="continuous"){
-        lab = "RMSE"
-    } else {
-        lab = "Misclassification"
-    }
-    index <- which.min(value)
-    optimal.k <- k[index]
-    optimal.weights <- kernel[index]
-    optimal.distance <- dist[index]
-    statistic <- min(value)
-    return(list("OptK" = optimal.k,
-                "OptWeights" = optimal.weights,
-                "OptDistance" = optimal.distance,
-                "MinStatistic" = statistic,
-                "value" = value,
-                "dist" = dist,
-                "lab" = lab,
-                "k" = k,
-                "kmax" = kmax))
-
-}
-
-.plotOptimization <- function(formula,dataset,options){
-
-    res <- .optimizerKNN(dataset,formula, kmax = options[["optimizeModelMaxK"]], distance_from = 0.1, distance_to = 10)
-
-    plot3D::scatter2D(y=res[["value"]],
-              x = res[["dist"]],
-              type = "l",
-              bty = "n",
-              xlab = "Distance parameter",
-              ylab = res[["lab"]],
-              las = 1,
-              lwd = 4,
-              colvar = res[["k"]],
-              clim = switch(EXPR = length(unique(res[["k"]]))<3,
-                            clim = c(1,res[["kmax"]]),
-                            clim = range(res[["k"]])),
-              clab = "No. nearest neighbors",
-              main = "",
-              xlim = range(res[["dist"]]),
-              NAcol = "white")
-
+.ErrorVsKplot <- function(options, res, jaspResults){
+  if(options[['plotErrorVsK']])
+  {
+     if(is.null(jaspResults[["plotErrorVsK"]]))
+     {
+     jaspResults[["plotErrorVsK"]] 		<- .plotErrorVsKClassification(options, res, jaspResults)
+     jaspResults[["plotErrorVsK"]]		$dependOnOptions(c("plotErrorVsK"))
+     jaspResults[["plotErrorVsK"]] 		$position <- 3
+     }
+  }
 }

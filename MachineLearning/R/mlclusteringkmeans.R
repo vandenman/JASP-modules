@@ -15,87 +15,52 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
+MLClusteringKMeans <- function(jaspResults, dataset, options, ...) {
 
-    # TODO: Make plots dissappear when de-selected
-
-    # read variables ##
-    dataset                     <- .readDataMlKmeans(dataset, options)
-    # error handling & code variable names in base64 ##
-    .MlKmeansErrorHandling(dataset, options)
-    predictors                  <- .v(options[["predictors"]])
-    # Null state
-    if(is.null(state))
-      state 							      <- list()
     # set the seed so that every time the same set is chosen (to prevent random results) ##
     set.seed(1)
     jaspResults$title 					<- "K-Means clustering"
-    # Set the right options for the analysis ##
+    # read variables ##
+    dataset                     <- .readDataMlKmeans(dataset, options)
+    # error handling & code variable names in base64
+    .MlKmeansErrorHandling(dataset, options)
+
+    ready <- length(options[["predictors"]][options[["predictors"]] != ""] > 0)
+    if(!ready){
+      .EvaluationTableKmeans(res = NULL, options, jaspResults)
+    } else {
+    # Set the right options for the analysis
     opt                         <- .OptionsSet(dataset, options)
-    # Run the analysis and save the results ##
-    .DoKmeansAnalysis(dataset, options, opt, predictors, jaspResults)
-    res                         <- jaspResults[["res"]]$object
-    # create the evaluation table ##
+    predictors                  <- .v(options[["predictors"]])
+    # Run the analysis and save the results
+    res                         <- .DoKmeansAnalysis(dataset, options, opt, predictors, jaspResults, ready)
+    # create the evaluation table
     .EvaluationTableKmeans(res, options, jaspResults)
-    # create the cluster information table ##
-    if (options[['tableClusterInformation']])
-    	{
-    		if(is.null(jaspResults[["tableClusterInformation"]]))
-    			.clusterInfoTable(options, res, predictors, jaspResults)
-    	}
-      # Create the predictions table ##
-      if (options[['tablePredictions']])
-      	{
-      		if(is.null(jaspResults[["tablePredictions"]]))
-      		  .PredictionsTableKmeans(res, options, jaspResults)
-      	}
-     # Create the 2-d clusterplot ##
-     if(options[['plot2dCluster']])
-     {
-        if(is.null(jaspResults[["plot2dCluster"]]))
-        {
-        jaspResults[["plot2dCluster"]] 		<- .plot2d(dataset, res, opt, options, predictors, jaspResults)
-        jaspResults[["plot2dCluster"]]		$copyDependenciesFromJaspObject(jaspResults[["evaluationTable"]])
-				jaspResults[["plot2dCluster"]] 		$position <- 4
-		    }
-	   }
-    # Create the within ss vs cluster plot ##
-    if(options[['plotPCAClusterSquares']] && options[['noOfClusters']] == 'optimized')
-    {
-       if(is.null(jaspResults[["optimPlot"]]))
-       {
-       jaspResults[["optimPlot"]] 		 <- .optimPlot(options, res, jaspResults, type = "wss")
-       jaspResults[["optimPlot"]]		   $copyDependenciesFromJaspObject(jaspResults[["evaluationTable"]])
-       jaspResults[["optimPlot"]] 		 $position <- 5
-       }
-    }
+    # create the cluster information table
+    .clusterInfoTable(options, res, predictors, jaspResults)
+    # Create the predictions table
+    .PredictionsTableKmeans(res, options, jaspResults)
+     # Create the 2-d clusterplot
+    .twoDClusterPlot(dataset, res, opt, options, predictors, jaspResults)
+    # Create the within ss vs cluster plot
+    .withinssPlot(options, res, jaspResults)
     # Create the criterion vs cluster plot ##
-    if(options[['plotCriterionVsClusters']] && options[['noOfClusters']] == 'robust')
-    {
-      if(is.null(jaspResults[["optimPlot"]]))
-      {
-      jaspResults[["optimPlot"]] 		 <- .optimPlot(options, res, jaspResults, type = "criterion")
-      jaspResults[["optimPlot"]]		 $copyDependenciesFromJaspObject(jaspResults[["evaluationTable"]])
-      jaspResults[["optimPlot"]] 		 $position <- 5
-      }
-    }
-    # Save the state
-    state[["options"]] 					<- options
-    return(state)
+    .criterionPlot(options, res, jaspResults)
+  }
 }
 
 .readDataMlKmeans <- function(dataset, options){
   predictors <- unlist(options['predictors'])
   predictors <- predictors[predictors != ""]
   if (is.null(dataset)) {
-          dataset <- .readDataSetToEnd(columns.as.numeric=predictors,exclude.na.listwise=predictors)
+          dataset <- .readDataSetToEnd(columns.as.numeric = predictors, exclude.na.listwise = predictors)
   }
-    return(dataset)
+  return(dataset)
 }
 
 .MlKmeansErrorHandling <- function(dataset, options){
   predictors <- unlist(options$predictors)
-  if(length(predictors[predictors!='']) > 0){
+  if(length(predictors[predictors != '']) > 0){
       for(i in 1:length(predictors)){
           errors <- .hasErrors(dataset, perform, type = c('infinity', 'observations'),
                                all.target = predictors[i],
@@ -162,8 +127,8 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
     return(opt)
 }
 
-.DoKmeansAnalysis <- function(dataset,options,opt,predictors, jaspResults){
-    if(length(predictors) > 0){
+.DoKmeansAnalysis <- function(dataset, options, opt, predictors, jaspResults, ready){
+    if(ready){
         if(options[['noOfClusters']] == 'auto' | options[['noOfClusters']] == 'manual'){
             res <- .Kmeansclusterspecified(dataset, options, opt, predictors)
         } else if (options[["noOfClusters"]] == 'robust'){
@@ -175,7 +140,10 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
         res <- NULL
     }
     jaspResults[["res"]] <- createJaspState(res)
-    jaspResults[["res"]]$dependOnOptions(c("predictors", "target", "noOfClusters","noOfRandomSets", "noOfIterations", "algorithm", "clusterSize", "optimizedFrom", "optimizedTo", "robustFrom", "robustTo", "criterion"))
+    jaspResults[["res"]]$dependOnOptions(c("predictors", "target", "noOfClusters","noOfRandomSets", "noOfIterations", "algorithm",
+                                            "clusterSize", "optimizedFrom", "optimizedTo", "robustFrom", "robustTo", "criterion"))
+
+    return(jaspResults[["res"]]$object)
 }
 
 .Kmeansclusterspecified <- function(dataset,options,opt,predictors){
@@ -213,7 +181,6 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
 }
 
 .robustclustering <- function(dataset,options,opt,predictors){
-    # install.packages('fpc', repos="http://cran.rstudio.com/")
     # library(fpc)
     fit <- fpc::pamk(dataset[,predictors],
                      krange = opt[['clusters']],
@@ -318,15 +285,17 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
     return(optimum)
 }
 
-.EvaluationTableKmeans <- function(res,options, jaspResults){
+.EvaluationTableKmeans <- function(res, options, jaspResults){
 
   if(!is.null(jaspResults[["evaluationTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
 
   evaluationTable                       <- createJaspTable("Evaluation Table")
   jaspResults[["evaluationTable"]]      <- evaluationTable
-  evaluationTable$dependOnOptions(c("predictors", "target", "noOfClusters","noOfRandomSets", "noOfIterations", "algorithm", "clusterSize", "optimizedFrom", "optimizedTo", "robustFrom", "robustTo", "criterion"))
+  evaluationTable$dependOnOptions(c("predictors", "target", "noOfClusters","noOfRandomSets", "noOfIterations", "algorithm",
+                                      "clusterSize", "optimizedFrom", "optimizedTo", "robustFrom", "robustTo",
+                                      "criterion", "plotCriterionVsClusters", "plotErrorVsK", "plot2dCluster", "ready"))
 
-    if(options[["noOfClusters"]] == "auto" | options[["noOfClusters"]] == 'manual'){
+    if(options[["noOfClusters"]] == "auto" || options[["noOfClusters"]] == 'manual'){
 
       evaluationTable$addColumnInfo(name = 'title', title = "", type = 'string')
       evaluationTable$addColumnInfo(name = 'clusters', title = 'Model Clusters', type = 'integer')
@@ -352,6 +321,10 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
 
         message <- "The model has not been applied to any data yet."
         evaluationTable$addFootnote(message=message, symbol="<i>Note.</i>")
+
+        row <- list()
+        evaluationTable$addRows(row)
+        return()
 
     } else {
 
@@ -385,6 +358,9 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
 .clusterInfoTable <- function(options, res, predictors, jaspResults){
 
   if(!is.null(jaspResults[["clusterInfoTable"]])) return() #The options for this table didn't change so we don't need to rebuild it
+
+  if (options[['tableClusterInformation']]){
+      if(is.null(jaspResults[["tableClusterInformation"]])){
 
   clusterInfoTable                        <- createJaspTable("Cluster Information")
   jaspResults[["clusterInfoTable"]]       <- clusterInfoTable
@@ -437,63 +413,37 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
       }
       clusterInfoTable$setData(data)
   }
+  }
+  }
 }
 
 .PredictionsTableKmeans <- function(res, options, jaspResults){
 
   if(!is.null(jaspResults[["tablePredictions"]])) return() #The options for this table didn't change so we don't need to rebuild it
 
+  if (options[['tablePredictions']]){
+      if(is.null(jaspResults[["tablePredictions"]])){
+
   tablePredictions                       <- createJaspTable("Predictions Table")
   jaspResults[["tablePredictions"]]      <- tablePredictions
-  tablePredictions$dependOnOptions(c("tablePredictions", "predictors", "target", "noOfClusters","noOfRandomSets", "noOfIterations", "algorithm", "clusterSize", "optimizedFrom", "optimizedTo", "robustFrom", "robustTo", "predictionsFrom", "predictionsTo"))
+  tablePredictions$dependOnOptions(c("tablePredictions", "predictors", "target", "noOfClusters","noOfRandomSets", "noOfIterations", "algorithm",
+                                    "clusterSize", "optimizedFrom", "optimizedTo", "robustFrom", "robustTo", "predictionsFrom", "predictionsTo"))
   tablePredictions$position <- 3
 
   from <- options[['predictionsFrom']]
   to <- options[["predictionsTo"]]
 
   tablePredictions$addColumnInfo(name = 'number', title = "Obs. number", type = 'integer')
-  tablePredictions$addColumnInfo(name = 'prediction', title = 'Prediction', type = 'integer')
+  tablePredictions$addColumnInfo(name = 'prediction', title = 'Predicted cluster', type = 'integer')
 
   if(!is.null(res)){
       for(i in from:to){
           row <- list(number = i, prediction = round(res[['Predictions']][[i,2]],2))
           tablePredictions$addRows(row)
       }
-  }
-}
-
-.PCAplot <- function(options, res, dataset, opt, predictors, jaspResults){
-
-  if(is.null(res))
-	  return(createJaspPlot(error="badData", errorMessage="Plotting is not possible: No analysis has been run."))
-
-  if(nrow(dataset) <= ncol(dataset))
-    return(createJaspPlot(error="badData", errorMessage='Should have more observations than variables'))
-
-  .plotFunc <- function(){
-    if(options[['noOfClusters']] == 'auto' | options[['noOfClusters']] == 'manual'){
-        clusters <- res[['clusters']]
-    }  else if (options[['noOfClusters']] == 'optimized' | options[['noOfClusters']] == 'robust'){
-        clusters <- res[['clusters']]
     }
-    kfit <- kmeans(dataset[,predictors],
-                   centers = clusters,
-                   iter.max = opt[['iter']],
-                   nstart = opt[['sets']],
-                   algorithm = opt[['algorithm']])
-    cluster::clusplot(dataset,
-                      kfit$cluster,
-                      color=TRUE,
-                      shade=TRUE,
-                      labels=5,
-                      lines=0,
-                      main = '',
-                      bty='n',
-                      las=1)
   }
-
-  pcaPlot <- createJaspPlot(plot=.plotFunc(), title="PCA cluster plot", width = options$plotWidth, height = options$plotHeight)
-	return(pcaPlot)
+  }
 }
 
 .plot2d <- function(dataset, res, opt, options, predictors, jaspResults){
@@ -546,10 +496,7 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
 
     p <- JASPgraphs::themeJasp(p)
 
-   return(createJaspPlot(plot = p, title= "2-D cluster plot"))
-    # if(options[['plot2dClusterCentroids']]){
-    #     vegan::ordispider(dat, factor(kfit$cluster), label = FALSE,lwd = 0.1,col= 'black') # grey48 # ,lty = 'dotted'
-    # }
+   return(createJaspPlot(plot = p, title= "2-D cluster plot", height = 300, width = 400))
 }
 
 .optimPlot <- function(options, res, jaspResults, type){
@@ -596,5 +543,41 @@ MLClusteringKMeans <- function(jaspResults, dataset, options, state=NULL) {
 
    p <- JASPgraphs::themeJasp(p)
 
-  return(createJaspPlot(plot = p, title= plotTitle))
+  return(createJaspPlot(plot = p, title= plotTitle, height = 300, width = 400))
+}
+
+.twoDClusterPlot <- function(dataset, res, opt, options, predictors, jaspResults){
+  if(options[['plot2dCluster']])
+  {
+     if(is.null(jaspResults[["plot2dCluster"]]))
+     {
+     jaspResults[["plot2dCluster"]] 		<- .plot2d(dataset, res, opt, options, predictors, jaspResults)
+     jaspResults[["plot2dCluster"]]		$copyDependenciesFromJaspObject(jaspResults[["evaluationTable"]])
+     jaspResults[["plot2dCluster"]] 		$position <- 4
+     }
+  }
+}
+
+.withinssPlot <- function(options, res, jaspResults){
+  if(options[['plotPCAClusterSquares']] && options[['noOfClusters']] == 'optimized')
+  {
+     if(is.null(jaspResults[["optimPlot"]]))
+     {
+     jaspResults[["optimPlot"]] 		 <- .optimPlot(options, res, jaspResults, type = "wss")
+     jaspResults[["optimPlot"]]		   $copyDependenciesFromJaspObject(jaspResults[["evaluationTable"]])
+     jaspResults[["optimPlot"]] 		 $position <- 5
+     }
+  }
+}
+
+.criterionPlot <- function(options, res, jaspResults){
+  if(options[['plotCriterionVsClusters']] && options[['noOfClusters']] == 'robust')
+  {
+    if(is.null(jaspResults[["optimPlot"]]))
+    {
+    jaspResults[["optimPlot"]] 		 <- .optimPlot(options, res, jaspResults, type = "criterion")
+    jaspResults[["optimPlot"]]		 $copyDependenciesFromJaspObject(jaspResults[["evaluationTable"]])
+    jaspResults[["optimPlot"]] 		 $position <- 5
+    }
+  }
 }
