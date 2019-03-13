@@ -342,8 +342,21 @@ MLRegressionRegularized <- function(jaspResults, dataset, options, ...) {
   regRegRelInfTable$addColumnInfo(name = "var",  title = " ", type = "string")
   regRegRelInfTable$addColumnInfo(name = "coefs",  title = "Coefficient", type = "number", format = "sf:4")
   
+  # Disentangle variable names
+  predictors_unv <- .unv(.v(options$predictors))
+  coefs_unv <- .unv(rownames(regRegResults$coefs))
+  predictors <- .v(options$predictors)
+  coefs <- rownames(regRegResults$coefs)
+  
+  for (i in 1:length(coefs)) {
+    coefs[i] <- paste(predictors_unv[which(startsWith(coefs_unv[i], predictors_unv))][1], 
+                      paste("(",stringr::str_remove(coefs[i], predictors[which(startsWith(coefs[i], predictors))][1]),
+                      ")", sep = ""))
+    if (startsWith(coefs[i], "NA")) coefs[i] <- "Intercept"
+  }
+  
   # Add data per column
-  regRegRelInfTable[["var"]]   <- if(ready) .unv(rownames(regRegResults$coefs)) else "."
+  regRegRelInfTable[["var"]]   <- if(ready) coefs else "."
   regRegRelInfTable[["coefs"]] <- if(ready) as.numeric(regRegResults$coefs) else "."
   
 }
